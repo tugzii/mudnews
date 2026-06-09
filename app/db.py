@@ -223,7 +223,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
     if mode == "latest":
         score_min   = LATEST_SCORE_MIN
         pool_size   = LATEST_POOL_SIZE
-        time_clause = "AND a.published_at >= (DATE_TRUNC('day', NOW() AT TIME ZONE 'Australia/Brisbane') - INTERVAL '1 day') AT TIME ZONE 'Australia/Brisbane'"
+        time_clause = "AND a.published_at >= NOW() - INTERVAL '48 hours'"
         time_params = ()
     elif mode == "top":
         score_min   = TOP_SCORE_MIN
