@@ -1988,7 +1988,8 @@ async function loadExploreInQueue(q = '') {
   exploreInQueueLoading = true;
   const list = document.getElementById('queue-list');
   const metaEl = document.getElementById('queue-search-meta');
-  if (metaEl) metaEl.textContent = q ? 'Searching…' : 'Loading recent articles…';
+  if (metaEl) metaEl.textContent = '';
+  setStatus(q ? 'Searching…' : 'Loading…');
   list.innerHTML = '';
   try {
     const url = q.length >= 2
@@ -1998,10 +1999,10 @@ async function loadExploreInQueue(q = '') {
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     const articles = data.articles || [];
-    if (metaEl) metaEl.textContent = articles.length
-      ? (q ? `${articles.length} result${articles.length !== 1 ? 's' : ''} for “${q}”`
-           : `${articles.length} most recent articles`)
-      : (q ? `No results for “${q}”` : 'No articles found');
+    setStatus(articles.length
+      ? (q ? `${articles.length} result${articles.length !== 1 ? 's' : ''}`
+           : `${articles.length} most recent`)
+      : (q ? 'No results' : 'No articles found'));
     if (!articles.length) {
       list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>${
         q ? `No results for "<strong>${escHtml(q)}</strong>"` : 'No articles found'
@@ -2011,7 +2012,7 @@ async function loadExploreInQueue(q = '') {
     list.innerHTML = articles.map((a, i) => buildCard(a, i, false, q || '')).join('');
   } catch(e) {
     console.error('Explore error:', e);
-    if (metaEl) metaEl.textContent = 'Failed to load';
+    setStatus('Failed to load');
   } finally {
     exploreInQueueLoading = false;
   }
