@@ -400,6 +400,17 @@
   .id-chip::before { content: '#'; opacity: 0.7; }
 
   /* ── Card title: single definition, used by both queue and history ── */
+  .card-desc {
+    font-size: 0.78rem;
+    color: var(--dim);
+    font-style: italic;
+    margin: 0.15rem 0 0;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .card-title {
     font-family: var(--mono);
     font-weight: 500;
@@ -2099,8 +2110,8 @@ function buildCard(a, index, isHistory, query = '') {
           ${category ? `<span class="category-tag">${category}</span>` : ''}
           <span class="age-tag">${age}</span>
         </div>
-        <div class="card-title"${desc ? ` title="${escHtml(desc)}"` : ""}>${title}</div>
-        ${desc ? `<span class="sr-only">${escHtml(desc)}</span>` : ""}
+        <div class="card-title">${title}</div>
+        ${desc ? `<div class="card-desc">${escHtml(desc)}</div>` : ""}
       </div>
     </div>
     <div class="card-body">
