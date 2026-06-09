@@ -2190,11 +2190,20 @@ function toggleExpand(cardId, artId) {
           const raw = data.full_content || '';
           contentCache[artId] = raw.toLowerCase();
           const paras = raw.split(/\n+/).filter(p => p.trim());
-          fullEl.innerHTML = paras.length
-            ? paras.map(p => `<p>${escHtml(p)}</p>`).join('')
-            : `<p style="color:var(--muted);font-style:italic">Full content not available.</p>`;
+          if (paras.length) {
+            fullEl.innerHTML = paras.map(p => `<p>${escHtml(p)}</p>`).join('');
+          } else {
+            fullEl.dataset.failed = '1';
+            const srcLink = data.url ? ` <a href="${escHtml(data.url)}" target="_blank" rel="noopener" style="color:var(--accent)">↗ Open source</a>` : '';
+            fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Content unavailable — may be paywalled or blocked.${srcLink}</p>`;
+            if (hint) { hint.innerHTML = '⬇ Fetch & expand'; hint.classList.add('fetch-hint'); }
+          }
         })
-        .catch(() => { fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Could not load article.</p>`; });
+        .catch(() => {
+          fullEl.dataset.failed = '1';
+          fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Could not load article.</p>`;
+          if (hint) { hint.innerHTML = '⬇ Fetch & expand'; hint.classList.add('fetch-hint'); }
+        });
     } else if (fullEl) {
       fullEl.style.display = 'block';
     }
@@ -2233,7 +2242,15 @@ function toggleExpand(cardId, artId) {
     const imgHint = hasImages
       ? `<span style="color:var(--dim);font-size:0.65rem;letter-spacing:0.04em;margin-left:0.25rem">· ${images.length} photo${images.length !== 1 ? 's' : ''}</span>`
       : '';
-    if (hint) hint.innerHTML = hasImages ? `expand ↓ ${imgHint}` : 'expand ↓';
+    if (hint) {
+      if (fullEl && fullEl.dataset.failed) {
+        hint.innerHTML = '⬇ Fetch & expand';
+        hint.classList.add('fetch-hint');
+      } else {
+        hint.innerHTML = hasImages ? `expand ↓ ${imgHint}` : 'expand ↓';
+        hint.classList.remove('fetch-hint');
+      }
+    }
   }
 }
 
