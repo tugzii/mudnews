@@ -1391,9 +1391,7 @@
   <button class="tab" onclick="switchTab('history')" id="tab-history">
     History <span class="tab-badge" id="badge-history" style="background:var(--muted)">0</span>
   </button>
-  <button class="tab" onclick="switchTab('explore')" id="tab-explore">
-    Explore
-  </button>
+
 </div>
 <div class="tabs-right">
   <span class="status-text" id="status-text"></span>
@@ -1408,6 +1406,7 @@
         <div class="mode-toggle" id="mode-toggle">
           <button class="mode-btn"        onclick="setMode('top')"    id="btn-mode-top">Top</button>
           <button class="mode-btn active" onclick="setMode('latest')" id="btn-mode-latest">Latest</button>
+          <button class="mode-btn"        onclick="setMode('explore')" id="btn-mode-explore">Explore</button>
         </div>
         <input class="history-search-input" id="queue-search-input" type="text"
                placeholder="Filter queue…" autocomplete="off" spellcheck="false"
@@ -1581,11 +1580,16 @@ function clearSearch() {
 
 function onQueueSearchInput() {
   const input = document.getElementById('queue-search-input');
-  queueSearchQuery = input.value.trim().toLowerCase();
+  const val = input.value.trim();
   const clearBtn = document.getElementById('queue-search-clear');
-  if (clearBtn) clearBtn.style.display = queueSearchQuery ? '' : 'none';
+  if (clearBtn) clearBtn.style.display = val ? '' : 'none';
   clearTimeout(queueSearchDebounce);
-  queueSearchDebounce = setTimeout(renderQueue, 150);
+  if (currentMode === 'explore') {
+    queueSearchDebounce = setTimeout(() => loadExploreInQueue(val), 400);
+  } else {
+    queueSearchQuery = val.toLowerCase();
+    queueSearchDebounce = setTimeout(renderQueue, 150);
+  }
 }
 
 function clearQueueSearch() {
@@ -1596,7 +1600,11 @@ function clearQueueSearch() {
   if (clearBtn) clearBtn.style.display = 'none';
   const metaEl = document.getElementById('queue-search-meta');
   if (metaEl) metaEl.textContent = '';
-  renderQueue();
+  if (currentMode === 'explore') {
+    loadExploreInQueue('');
+  } else {
+    renderQueue();
+  }
 }
 
 function onHistorySearchInput() {
@@ -1869,7 +1877,10 @@ function switchTab(tab) {
   } else if (isExplore) {
     document.getElementById('btn-refresh').onclick = () => exploreQuery ? runExplore() : loadRecentArticles();
   } else {
-    document.getElementById('btn-refresh').onclick = loadQueue;
+    document.getElementById('btn-refresh').onclick = () => {
+      if (currentMode === 'explore') loadExploreInQueue(document.getElementById('queue-search-input').value.trim());
+      else loadQueue();
+    };
   }
   if (isExplore) {
     setTimeout(() => document.getElementById('explore-input').focus(), 50);
@@ -1883,8 +1894,18 @@ function setMode(mode) {
   currentMode = mode;
   document.getElementById('btn-mode-top').classList.toggle('active', mode === 'top');
   document.getElementById('btn-mode-latest').classList.toggle('active', mode === 'latest');
+  document.getElementById('btn-mode-explore').classList.toggle('active', mode === 'explore');
   queueArticles = [];
-  loadQueue();
+  const searchInput = document.getElementById('queue-search-input');
+  if (mode === 'explore') {
+    searchInput.placeholder = 'Search all articles…';
+    clearQueueSearch();
+    loadExploreInQueue('');
+  } else {
+    searchInput.placeholder = 'Filter queue…';
+    clearQueueSearch();
+    loadQueue();
+  }
 }
 
 // ── Queue ─────────────────────────────────────────────────────────────────────
@@ -1949,6 +1970,41 @@ function parseImages(raw) {
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
+let exploreInQueueLoading = false;
+async function loadExploreInQueue(q = '') {
+  if (exploreInQueueLoading) return;
+  exploreInQueueLoading = true;
+  const list = document.getElementById('queue-list');
+  const metaEl = document.getElementById('queue-search-meta');
+  if (metaEl) metaEl.textContent = q ? 'Searching…' : 'Loading recent articles…';
+  list.innerHTML = '';
+  try {
+    const url = q.length >= 2
+      ? `${BASE}/explore-articles?q=${encodeURIComponent(q)}&limit=100`
+      : `${BASE}/explore-articles?limit=100`;
+    const r = await authFetch(url);
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const articles = data.articles || [];
+    if (metaEl) metaEl.textContent = articles.length
+      ? (q ? `${articles.length} result${articles.length !== 1 ? 's' : ''} for “${q}”`
+           : `${articles.length} most recent articles`)
+      : (q ? `No results for “${q}”` : 'No articles found');
+    if (!articles.length) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>${
+        q ? `No results for "<strong>${escHtml(q)}</strong>"` : 'No articles found'
+      }</p></div>`;
+      return;
+    }
+    list.innerHTML = articles.map((a, i) => buildCard(a, i, false, q || '')).join('');
+  } catch(e) {
+    console.error('Explore error:', e);
+    if (metaEl) metaEl.textContent = 'Failed to load';
+  } finally {
+    exploreInQueueLoading = false;
+  }
+}
+
 function renderQueue() {
   const list = document.getElementById('queue-list');
   const filtered = queueSearchQuery
