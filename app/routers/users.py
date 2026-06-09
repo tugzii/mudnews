@@ -7,7 +7,7 @@ from app.db import get_conn
 router = APIRouter()
 
 
-@router.get("/smfx17/get-users")
+@router.get("/mudnews/get-users")
 async def get_users(user: str = Depends(require_session)):
     conn = get_conn()
     cur  = conn.cursor()
@@ -17,6 +17,7 @@ async def get_users(user: str = Depends(require_session)):
     conn.close()
     return JSONResponse({"users": users})
 
-@router.get("/smfx17/me")
+
+@router.get("/mudnews/me")
 async def get_me(user: str = Depends(require_session)):
     return {"username": user}

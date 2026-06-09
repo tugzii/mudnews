@@ -1,12 +1,11 @@
 from pathlib import Path
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse
-
-from app.auth import require_session
 
 router = APIRouter()
 
-HTML_PATH = Path("/app/app/static/mudnews-viewer.html")
+HTML_PATH  = Path("/app/app/static/mudnews-viewer.html")
+LOGIN_PATH = Path("/app/app/static/mudnews-login.html")
 
 
 @router.get("/mudnews")
@@ -16,5 +15,10 @@ async def redirect_to_app():
 
 
 @router.get("/mudnews/app", response_class=HTMLResponse)
-async def serve_app(user: str = Depends(require_session)):
+async def serve_app():
     return HTML_PATH.read_text()
+
+
+@router.get("/mudnews/login", response_class=HTMLResponse)
+async def serve_login():
+    return LOGIN_PATH.read_text()

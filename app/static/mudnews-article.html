@@ -596,6 +596,18 @@
 
 <script>
 const BASE = '/mudnews';
+const TOKEN_KEY = 'mudnews_token';
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function logout() { localStorage.removeItem(TOKEN_KEY); window.location.replace('/mudnews/login'); }
+function authFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + (getToken() || '') });
+  return fetch(url, opts).then(function(r) {
+    if (r.status === 401) { logout(); return Promise.reject(new Error('Session expired')); }
+    return r;
+  });
+}
+
 
 // ── Lightbox state ────────────────────────────────────────────────────────────
 let lbImages = [];
@@ -603,6 +615,8 @@ let lbIndex  = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  if (!getToken()) { window.location.replace('/mudnews/login'); return; }
+
   const parts = window.location.pathname.split('/');
   const articleId = parts[parts.length - 1];
   if (!articleId || isNaN(Number(articleId))) {
@@ -621,7 +635,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // ── Load article ──────────────────────────────────────────────────────────────
 async function loadArticle(id) {
   try {
-    const r = await fetch(`${BASE}/article-data/${id}`);
+    const r = await authFetch(`${BASE}/article-data/${id}`);
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
       showError(err.detail || `HTTP ${r.status}`);

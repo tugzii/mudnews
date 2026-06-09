@@ -1312,7 +1312,7 @@
     <div class="user-chip" id="user-chip">
       <span id="user-chip-name"></span>
     </div>
-    <a href="/outpost.goauthentik.io/sign_out" class="btn-logout">⏻ Sign out</a>
+    <a href="#" class="btn-logout" onclick="event.preventDefault();logout();">⏻ Sign out</a>
   </div>
 </header>
 
@@ -1420,6 +1420,18 @@
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
 const BASE = '/mudnews';
+const TOKEN_KEY = 'mudnews_token';
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function logout() { localStorage.removeItem(TOKEN_KEY); window.location.replace('/mudnews/login'); }
+function authFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, { 'Authorization': 'Bearer ' + (getToken() || '') });
+  return fetch(url, opts).then(function(r) {
+    if (r.status === 401) { logout(); return Promise.reject(new Error('Session expired')); }
+    return r;
+  });
+}
+
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentMode     = 'latest';
@@ -1455,7 +1467,7 @@ const imageStore = {};
 // Gracefully silent on failure — the chip simply stays hidden.
 async function loadCurrentUser() {
   try {
-    const r = await fetch(`${BASE}/me`);
+    const r = await authFetch(`${BASE}/me`);
     if (!r.ok) return;
     const data = await r.json();
     const name = data.username || data.name || data.email || data.user || '';
@@ -1489,7 +1501,8 @@ function clearSearch() {
 function articleMatchesQuery(a, q) {
   if (!q) return true;
   return (a.title         || '').toLowerCase().includes(q)
-      || (a.|| (a.category      || '').toLowerCase().includes(q);
+      || (a.description   || '').toLowerCase().includes(q)
+      || (a.category      || '').toLowerCase().includes(q);
 }
 
 function highlightQuery(text, q) {
@@ -1689,6 +1702,8 @@ let lightboxIndex  = 0;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  if (!getToken()) { window.location.replace('/mudnews/login'); return; }
+
   loadCurrentUser();
   loadQueue();
   loadHistory();
@@ -1758,7 +1773,7 @@ async function loadQueue() {
   queueArticles = [];
   renderQueue();
   try {
-    const r = await fetch(`${BASE}/get-queue?mode=${currentMode}`);
+    const r = await authFetch(`${BASE}/get-queue?mode=${currentMode}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     queueArticles = Array.isArray(data) ? data : (data.articles || []);
@@ -1783,7 +1798,7 @@ async function loadQueue() {
 async function loadHistory() {
   setStatus('<span class="spinner"></span>Loading history…');
   try {
-    const r = await fetch(`${BASE}/get-history`);
+    const r = await authFetch(`${BASE}/get-history`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     historyArticles = Array.isArray(data) ? data : (data.articles || []);
@@ -1861,7 +1876,8 @@ function buildCard(a, index, isHistory, query = '') {
   const score    = a.ai_score || a.effective_score || 0;
   const decay    = a.decay || 'moderate';
   const title    = query ? highlightQuery(a.title || 'Untitled', query) : escHtml(a.title || 'Untitled');
-  const summary  = query ? highlightQuery(a.query) : escHtml(a.const artUrl   = a.url || '#';
+  const summary  = query ? highlightQuery(a.summary || '', query) : escHtml(a.summary || '');
+  const artUrl   = a.url || '#';
   const category = query ? highlightQuery(a.category || '', query) : escHtml(a.category || '');
   const age      = timeAgo(a.created_at || a.actioned_at);
   const cardId   = `${isHistory ? 'h' : 'q'}-card-${artId}`;
@@ -1930,7 +1946,7 @@ async function openFullArticle(articleId, btn) {
     // then open the page in a new tab.  The tab's own JS will fetch again
     // to render — this first call is just a cheap "does it exist?" check
     // so we can show a sensible error without losing focus.
-    const r = await fetch(`${BASE}/article-data/${articleId}`);
+    const r = await authFetch(`${BASE}/article-data/${articleId}`);
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
       showToast(err.detail || `Article not available (${r.status})`, 'error');
@@ -2136,7 +2152,7 @@ async function markArticle(articleId, status, cardId) {
   const card = document.getElementById(cardId);
   if (card) card.querySelectorAll('.btn-action').forEach(b => b.disabled = true);
   try {
-    const r = await fetch(`${BASE}/mark-read`, {
+    const r = await authFetch(`${BASE}/mark-read`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ article_id: articleId, status })
@@ -2229,7 +2245,7 @@ async function loadRecentArticles() {
   document.getElementById('explore-meta').textContent = 'Loading recent articles…';
   document.getElementById('explore-list').innerHTML = '';
   try {
-    const r = await fetch(`${BASE}/recent-articles?limit=50`);
+    const r = await authFetch(`${BASE}/recent-articles?limit=50`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     exploreResults = data.articles || [];
@@ -2259,7 +2275,7 @@ async function runExplore() {
   document.getElementById('explore-list').innerHTML = '';
 
   try {
-    const r = await fetch(`${BASE}/search-articles?q=${encodeURIComponent(q)}&limit=50`);
+    const r = await authFetch(`${BASE}/search-articles?q=${encodeURIComponent(q)}&limit=50`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     exploreResults = data.articles || [];
@@ -2300,7 +2316,8 @@ function buildExploreCard(a, index) {
   const hasContent   = !!a.content_fetched;
   const interaction  = a.interaction_status;
   const cardId       = `ex-card-${artId}`;
-  const summary      = a.const title  = highlightQuery(a.title || 'Untitled', exploreQuery);
+  const summary      = '';
+  const title  = highlightQuery(a.title || 'Untitled', exploreQuery);
   const desc   = highlightQuery(a.description || '', exploreQuery);
   const reason = a.ai_reason ? escHtml(a.ai_reason) : '';
 
@@ -2395,7 +2412,7 @@ async function rescueArticle(articleId) {
   btn.textContent = 'Rescuing…';
 
   try {
-    const r = await fetch(`${BASE}/rescue-article`, {
+    const r = await authFetch(`${BASE}/rescue-article`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ article_id: articleId }),

@@ -19,8 +19,9 @@ from pydantic import BaseModel
 from app.dependencies import require_auth
 from app.db import (
     get_conn, get_unscored_articles, insert_article_score,
-    parse_ai_score_payload, update_article_content,
+    update_article_content,
 )
+from app.scoring import parse_ai_score_payload
 
 logger = logging.getLogger(__name__)
 

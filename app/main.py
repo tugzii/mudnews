@@ -3,8 +3,13 @@ import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
+from app.limiter import limiter
 from app.routers import app_html, users, queue, history, stories, mark_read, n8n, feeds, article_view, explore, article_read
+from app.routers.auth import router as auth_router
 from app.db import get_conn, fix_null_decay
 
 def load_secrets():
@@ -29,6 +34,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, docs_url="/mudnews/docs", redoc_url="/mudnews/redoc", openapi_url="/mudnews/openapi.json")
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,6 +45,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(app_html.router)
 app.include_router(users.router)
 app.include_router(queue.router)
