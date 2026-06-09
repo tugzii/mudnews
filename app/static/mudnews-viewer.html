@@ -1429,7 +1429,7 @@
     </div>
     <div class="filter-row" id="history-filters">
       <button class="filter-btn active-all" onclick="setHistoryFilter('all')"      id="hf-all">All</button>
-      <button class="filter-btn"            onclick="setHistoryFilter('read')"     id="hf-read">✓ Read</button>
+      <button class="filter-btn"            onclick="setHistoryFilter('read')"     id="hf-read">✓ Archived</button>
       <button class="filter-btn"            onclick="setHistoryFilter('skipped')"  id="hf-skipped">→ Skipped</button>
       <button class="filter-btn"            onclick="setHistoryFilter('declined')" id="hf-declined">✗ Declined</button>
     </div>
@@ -1977,7 +1977,7 @@ function renderHistory() {
   historyArticles.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
   ['all','read','skipped','declined'].forEach(f => {
     const el = document.getElementById(`hf-${f}`);
-    el.innerHTML = { all: 'All', read: '✓ Read', skipped: '→ Skipped', declined: '✗ Declined' }[f]
+    el.innerHTML = { all: 'All', read: '✓ Archived', skipped: '→ Skipped', declined: '✗ Declined' }[f]
       + ` <span class="filter-count">(${counts[f]})</span>`;
   });
 
@@ -2023,7 +2023,7 @@ function buildCard(a, index, isHistory, query = '') {
     </span>` : '';
 
   const actionBtns = !isHistory ? `
-    <button class="btn-action btn-read"    onclick="markArticle(${artId},'read',    '${cardId}')">✓ Read</button>
+    <button class="btn-action btn-read"    onclick="markArticle(${artId},'read',    '${cardId}')">✓ Archive</button>
     <!-- Skip hidden — was used for Alexa voice mode; kept for potential future use -->
     <button class="btn-action btn-skip"    onclick="markArticle(${artId},'skipped', '${cardId}')" style="display:none">→ Skip</button>
     <button class="btn-action btn-decline" onclick="markArticle(${artId},'declined','${cardId}')">✗ Decline</button>
@@ -2308,7 +2308,7 @@ async function markArticle(articleId, status, cardId) {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const toastType = { read: 'ok', skipped: 'skip', declined: 'decline' }[status] || 'ok';
-    const toastMsg  = { read: '✓ Marked as read', skipped: '→ Skipped', declined: '✗ Declined' }[status];
+    const toastMsg  = { read: '✓ Archived', skipped: '→ Skipped', declined: '✗ Declined' }[status];
     showToast(toastMsg, toastType);
     if (card) {
       card.classList.add('fading');
@@ -2497,7 +2497,7 @@ function buildExploreCard(a, index) {
   }
 
   const interactionBadge = interaction && interaction !== 'presented'
-    ? `<span class="interaction-badge ${interaction}">${{read:'✓ Read', skipped:'→ Skipped', declined:'✗ Declined'}[interaction] || interaction}</span>`
+    ? `<span class="interaction-badge ${interaction}">${{read:'✓ Archived', skipped:'→ Skipped', declined:'✗ Declined'}[interaction] || interaction}</span>`
     : '';
 
   const rescuedBadge = isRescued
@@ -2540,7 +2540,7 @@ function buildExploreCard(a, index) {
       ${rescueBtn}
       ${statusPill}
       ${isSummarised ? `
-        <button class="btn-action btn-read"    onclick="markArticle(${artId},'read',    '${cardId}')">✓ Read</button>
+        <button class="btn-action btn-read"    onclick="markArticle(${artId},'read',    '${cardId}')">✓ Archive</button>
         <button class="btn-action btn-decline" onclick="markArticle(${artId},'declined','${cardId}')">✗ Decline</button>
         <button class="btn-full-article" id="full-btn-${artId}" onclick="openFullArticle(${artId}, this)">⊞ Full Article</button>
         ${summaryBlock ? `<button class="btn-speed-read" onclick="srOpen(document.getElementById('sum-${cardId}').innerHTML)">⚡ Speed Read</button>` : ''}
