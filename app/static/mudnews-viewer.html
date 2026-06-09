@@ -1944,9 +1944,7 @@ async function loadQueue() {
   }
   renderQueue();
   updateBadge('queue', queueArticles.length);
-  setStatus(queueArticles.length
-    ? `${queueArticles.length} article${queueArticles.length !== 1 ? 's' : ''} ready`
-    : 'No articles');
+  setStatus('');
   refreshBtn.disabled = false;
   loadingQueue = false;
 }
@@ -1999,10 +1997,11 @@ async function loadExploreInQueue(q = '') {
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
     const articles = data.articles || [];
-    setStatus(articles.length
+    if (metaEl) metaEl.textContent = articles.length
       ? (q ? `${articles.length} result${articles.length !== 1 ? 's' : ''}`
            : `${articles.length} most recent`)
-      : (q ? 'No results' : 'No articles found'));
+      : (q ? 'No results' : 'No articles found');
+    setStatus('');
     if (!articles.length) {
       list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>${
         q ? `No results for "<strong>${escHtml(q)}</strong>"` : 'No articles found'
@@ -2025,7 +2024,9 @@ function renderQueue() {
     : queueArticles;
 
   const metaEl = document.getElementById('queue-search-meta');
-  if (metaEl) metaEl.textContent = queueSearchQuery ? `${filtered.length} / ${queueArticles.length} match${filtered.length !== 1 ? 'es' : ''}` : '';
+  if (metaEl) metaEl.textContent = queueSearchQuery
+    ? `${filtered.length} / ${queueArticles.length} match${filtered.length !== 1 ? 'es' : ''}`
+    : (queueArticles.length ? `${queueArticles.length} article${queueArticles.length !== 1 ? 's' : ''}` : '');
 
   if (!filtered.length) {
     const msg = queueSearchQuery
