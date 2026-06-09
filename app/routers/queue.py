@@ -44,6 +44,7 @@ async def get_queue(
             "effective_score": art["effective_score"],
             "category":        art["category"],
             "images":          art["images"],
+            "content_fetched": art.get("content_fetched", False),
         }
 
         if rec["images"] is None:

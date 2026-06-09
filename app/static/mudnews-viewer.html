@@ -469,6 +469,7 @@
     display: block;
   }
   .expand-hint:hover { color: var(--accent2); }
+  .fetch-hint { color: var(--accent); opacity: 0.8; }
 
   /* ── Image gallery ── */
   .card-images {
@@ -2098,7 +2099,10 @@ function buildCard(a, index, isHistory, query = '') {
     <button class="btn-action btn-decline" onclick="markArticle(${artId},'declined','${cardId}')">✗ Decline</button>
   ` : statusBadge;
 
-  const expandText = hasImages ? `expand ↓ ${imgHint}` : 'expand ↓';
+  const fetched    = a.content_fetched !== false;  // true if already in DB
+  const expandText = fetched
+    ? (hasImages ? `expand ↓ ${imgHint}` : 'expand ↓')
+    : '⬇ Fetch & expand';
 
   return `
   <div class="article-card ${isHistory ? 'history-card' : ''}" id="${cardId}" style="animation-delay:${index * 0.04}s" data-article-id="${artId}">
@@ -2118,7 +2122,7 @@ function buildCard(a, index, isHistory, query = '') {
       ${summary ? `<div class="card-summary" id="sum-${cardId}" onclick="event.stopPropagation();toggleExpand('${cardId}',${artId})">${summary}</div>` : ''}
       <div class="card-full-content" id="full-${cardId}"></div>
       <div class="card-images"       id="imgs-${cardId}"></div>
-      <span class="expand-hint" id="hint-${cardId}" onclick="toggleExpand('${cardId}',${artId})">${expandText}</span>
+      <span class="expand-hint${fetched ? '' : ' fetch-hint'}" id="hint-${cardId}" onclick="toggleExpand('${cardId}',${artId})">${expandText}</span>
     </div>
     <div class="card-footer">
       ${actionBtns}
