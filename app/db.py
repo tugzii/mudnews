@@ -223,7 +223,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
     if mode == "latest":
         score_min   = LATEST_SCORE_MIN
         pool_size   = LATEST_POOL_SIZE
-        time_clause = "AND aus.ai_scored_at >= NOW() - INTERVAL '1 hour' * %s"
+        time_clause = "AND a.published_at >= NOW() - INTERVAL '1 hour' * %s"
         time_params = (LATEST_WINDOW_HOURS,)
     elif mode == "top":
         score_min   = TOP_SCORE_MIN
@@ -246,7 +246,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
         f"""
         SELECT
             a.id, a.url, a.title, a.voice_summary, a.full_content, a.images,
-            aus.ai_score, a.decay, a.created_at,
+            aus.ai_score, a.decay, a.created_at, a.published_at,
             c.name AS category,
             aus.rescued_at
         FROM articles a
@@ -271,7 +271,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
 
     candidates = []
     for row in cur.fetchall():
-        aid, url, title, voice_summary, full_content, images, ai_score, decay, created_at, category, rescued_at = row
+        aid, url, title, voice_summary, full_content, images, ai_score, decay, created_at, published_at, category, rescued_at = row
 
         # Treat NULL decay as 'moderate' consistently (mirrors DEFAULT_DECAY and
         # the fix_null_decay() migration).
@@ -305,6 +305,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
             "decay":           decay,
             "category":        category,
             "created_at":      created_at,
+            "published_at":    published_at,
             "rescued_at":      rescued_at,
             "_sort_key":       sort_key,
             "_rescued":        is_rescued,

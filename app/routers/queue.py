@@ -38,6 +38,7 @@ async def get_queue(
             "url":             art["url"],
             "decay":           art["decay"],
             "created_at":      art["created_at"].isoformat(),
+            "published_at":    art["published_at"].isoformat() if art.get("published_at") else art["created_at"].isoformat(),
             "ai_score":        art["ai_score"],
             "effective_score": art["effective_score"],
             "category":        art["category"],

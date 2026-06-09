@@ -2004,7 +2004,7 @@ function buildCard(a, index, isHistory, query = '') {
   const summary  = query ? highlightQuery(a.summary || '', query) : escHtml(a.summary || '');
   const artUrl   = a.url || '#';
   const category = query ? highlightQuery(a.category || '', query) : escHtml(a.category || '');
-  const age      = timeAgo(a.created_at || a.actioned_at);
+  const age      = timeAgo(a.published_at || a.created_at || a.actioned_at);
   const cardId   = `${isHistory ? 'h' : 'q'}-card-${artId}`;
 
   const scoreClass = score >= 75 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low';
