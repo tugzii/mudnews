@@ -69,6 +69,7 @@ def get_unscored_articles(conn, limit: int = 200) -> list[dict]:
               WHERE  aus.article_id = a.id
                 AND  aus.user_id    = u.id
           )
+        ORDER BY a.id DESC
         LIMIT %s
         """,
         (limit,),
