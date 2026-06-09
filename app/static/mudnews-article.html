@@ -672,8 +672,10 @@ function renderArticle(a) {
   document.getElementById('article-title').textContent = a.title;
 
   // ── AI summary callout ──
-  if (a.const callout = document.getElementById('summary-callout');
-    document.getElementById('summary-text').textContent = a.callout.classList.add('visible');
+  if (a.ai_reason) {
+    const callout = document.getElementById('summary-callout');
+    document.getElementById('summary-text').textContent = a.ai_reason;
+    callout.classList.add('visible');
   }
 
   // ── images ──

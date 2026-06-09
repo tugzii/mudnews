@@ -160,13 +160,22 @@
     background: rgba(17,17,22,0.97);
     backdrop-filter: blur(12px);
     box-shadow: 0 1px 0 var(--border);
+    display: flex;
+    align-items: center;
   }
   .tabs {
+    flex: 1;
     display: flex;
     gap: 0;
-    border-bottom: 1px solid var(--border);
     padding: 0 2rem;
     background: transparent;
+  }
+  .tabs-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 1.5rem;
+    flex-shrink: 0;
   }
 
   .tab {
@@ -331,6 +340,7 @@
   .history-card { opacity: 0.88; }
 
   .card-header {
+    cursor: pointer;
     padding: 1rem 1.25rem 0.75rem;
     display: flex;
     align-items: flex-start;
@@ -425,6 +435,18 @@
 
   /* History summary: same clamp as queue (3 lines), was 2 before — unified */
   .history-card .card-summary:not(.expanded) { -webkit-line-clamp: 3; }
+
+  .card-full-content {
+    display: none;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #b2b2c2;
+    padding: 0.5rem 0 0.25rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 0.5rem;
+  }
+  .card-full-content p { margin: 0 0 0.6rem; }
+  .card-full-content p:last-child { margin-bottom: 0; }
 
   .expand-hint {
     font-size: 0.68rem;
@@ -1026,6 +1048,50 @@
     letter-spacing: 0.03em;
     min-height: 1.1em;
   }
+  /* ── History tab search ── */
+  .history-search-wrap {
+    padding: 0.75rem 2rem 0.5rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .history-search-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .history-search-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 0.55rem 0.85rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .history-search-input::placeholder { color: var(--dim); }
+  .history-search-input:focus { border-color: var(--accent); }
+  .history-search-clear {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    padding: 0.5rem 0.65rem;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    transition: color 0.15s;
+  }
+  .history-search-clear:hover { color: var(--text); }
+  .history-search-meta {
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    min-height: 1.1em;
+  }
   /* Explore result card */
   .explore-card {
     border: 1px solid var(--border);
@@ -1328,29 +1394,39 @@
     Explore
   </button>
 </div>
-
-<div class="toolbar">
-  <div class="mode-toggle" id="mode-toggle">
-    <button class="mode-btn"        onclick="setMode('top')"    id="btn-mode-top">Top</button>
-    <button class="mode-btn active" onclick="setMode('latest')" id="btn-mode-latest">Latest</button>
-  </div>
-  <div class="search-wrap">
-    <input class="search-input" id="search-input" type="text" placeholder="Search…" autocomplete="off" spellcheck="false" oninput="onSearchInput()">
-    <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear search">✕</button>
-  </div>
-  <span class="search-match-count" id="search-match-count"></span>
-  <div class="toolbar-right">
-    <span class="status-text" id="status-text"></span>
-    <button class="btn-refresh" id="btn-refresh" onclick="loadQueue()">↻ Refresh</button>
-  </div>
+<div class="tabs-right">
+  <span class="status-text" id="status-text"></span>
+  <button class="btn-refresh" id="btn-refresh" onclick="loadQueue()">↻ Refresh</button>
 </div>
 </div>
 
 <main>
   <div class="panel active" id="panel-queue">
+    <div class="history-search-wrap">
+      <div class="history-search-row">
+        <div class="mode-toggle" id="mode-toggle">
+          <button class="mode-btn"        onclick="setMode('top')"    id="btn-mode-top">Top</button>
+          <button class="mode-btn active" onclick="setMode('latest')" id="btn-mode-latest">Latest</button>
+        </div>
+        <input class="history-search-input" id="queue-search-input" type="text"
+               placeholder="Filter queue…" autocomplete="off" spellcheck="false"
+               oninput="onQueueSearchInput()">
+        <button class="history-search-clear" id="queue-search-clear" onclick="clearQueueSearch()" style="display:none">✕</button>
+      </div>
+      <div class="history-search-meta" id="queue-search-meta"></div>
+    </div>
     <div id="queue-list"></div>
   </div>
   <div class="panel" id="panel-history">
+    <div class="history-search-wrap">
+      <div class="history-search-row">
+        <input class="history-search-input" id="history-search-input" type="text"
+               placeholder="Filter history…" autocomplete="off" spellcheck="false"
+               oninput="onHistorySearchInput()">
+        <button class="history-search-clear" id="history-search-clear" onclick="clearHistorySearch()" style="display:none">✕</button>
+      </div>
+      <div class="history-search-meta" id="history-search-meta"></div>
+    </div>
     <div class="filter-row" id="history-filters">
       <button class="filter-btn active-all" onclick="setHistoryFilter('all')"      id="hf-all">All</button>
       <button class="filter-btn"            onclick="setHistoryFilter('read')"     id="hf-read">✓ Read</button>
@@ -1364,8 +1440,7 @@
       <div class="explore-search-row">
         <input class="explore-input" id="explore-input" type="text"
                placeholder="Search all articles…" autocomplete="off" spellcheck="false"
-               oninput="onExploreInput()" onkeydown="if(event.key==='Enter')runExplore()">
-        <button class="explore-go-btn" onclick="runExplore()">Search</button>
+               oninput="onExploreInput()">
         <button class="explore-clear-btn" id="explore-clear" onclick="clearExplore()" style="display:none">✕</button>
       </div>
       <div class="explore-meta" id="explore-meta"></div>
@@ -1446,6 +1521,11 @@ let historyArticles = [];
 let loadingQueue    = false;
 let searchQuery     = '';
 let searchDebounce  = null;
+let historySearchQuery    = '';
+let historySearchDebounce = null;
+let queueSearchQuery      = '';
+let queueSearchDebounce   = null;
+const contentCache        = {};
 
 function debounce(fn, ms) {
   return (...args) => {
@@ -1456,7 +1536,6 @@ function debounce(fn, ms) {
 
 const debouncedRender = debounce(() => {
   if (currentTab === 'queue') renderQueue();
-  else renderHistory();
 }, 150);
 
 const imageStore = {};
@@ -1491,18 +1570,63 @@ function onSearchInput() {
 
 function clearSearch() {
   searchQuery = '';
-  document.getElementById('search-input').value = '';
-  document.getElementById('search-clear').classList.remove('visible');
-  document.getElementById('search-match-count').textContent = '';
-  if (currentTab === 'queue') renderQueue();
-  else renderHistory();
+  const _inp = document.getElementById('search-input');
+  if (_inp) _inp.value = '';
+  const _clr = document.getElementById('search-clear');
+  if (_clr) _clr.classList.remove('visible');
+  const _cnt = document.getElementById('search-match-count');
+  if (_cnt) _cnt.textContent = '';
+}
+
+function onQueueSearchInput() {
+  const input = document.getElementById('queue-search-input');
+  queueSearchQuery = input.value.trim().toLowerCase();
+  const clearBtn = document.getElementById('queue-search-clear');
+  if (clearBtn) clearBtn.style.display = queueSearchQuery ? '' : 'none';
+  clearTimeout(queueSearchDebounce);
+  queueSearchDebounce = setTimeout(renderQueue, 150);
+}
+
+function clearQueueSearch() {
+  queueSearchQuery = '';
+  const input = document.getElementById('queue-search-input');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('queue-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const metaEl = document.getElementById('queue-search-meta');
+  if (metaEl) metaEl.textContent = '';
+  renderQueue();
+}
+
+function onHistorySearchInput() {
+  const input = document.getElementById('history-search-input');
+  historySearchQuery = input.value.trim().toLowerCase();
+  const clearBtn = document.getElementById('history-search-clear');
+  if (clearBtn) clearBtn.style.display = historySearchQuery ? '' : 'none';
+  clearTimeout(historySearchDebounce);
+  historySearchDebounce = setTimeout(renderHistory, 150);
+}
+
+function clearHistorySearch() {
+  historySearchQuery = '';
+  const input = document.getElementById('history-search-input');
+  if (input) input.value = '';
+  const clearBtn = document.getElementById('history-search-clear');
+  if (clearBtn) clearBtn.style.display = 'none';
+  const metaEl = document.getElementById('history-search-meta');
+  if (metaEl) metaEl.textContent = '';
+  renderHistory();
 }
 
 function articleMatchesQuery(a, q) {
   if (!q) return true;
-  return (a.title         || '').toLowerCase().includes(q)
-      || (a.description   || '').toLowerCase().includes(q)
-      || (a.category      || '').toLowerCase().includes(q);
+  const norm = s => (s || '').toLowerCase().replace(/\s+/g, ' ');
+  const nq = norm(q);
+  const id = a.article_id || a.id;
+  return norm(a.title).includes(nq)
+      || norm(a.description).includes(nq)
+      || norm(a.category).includes(nq)
+      || !!(contentCache[id] && norm(contentCache[id]).includes(nq));
 }
 
 function highlightQuery(text, q) {
@@ -1711,7 +1835,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (document.getElementById('sr-modal').classList.contains('open')) { srClose(); return; }
-      if (searchQuery) { clearSearch(); return; }
+      if (currentTab === 'queue' && queueSearchQuery) { clearQueueSearch(); return; }
+      if (currentTab === 'history' && historySearchQuery) { clearHistorySearch(); return; }
       closeLightbox();
     }
     if (e.key === ' ' && document.getElementById('sr-modal').classList.contains('open')) { e.preventDefault(); srTogglePlay(); return; }
@@ -1719,7 +1844,11 @@ window.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'ArrowRight') stepLightbox(1);
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
-      document.getElementById('search-input').focus();
+      const _sid = currentTab === 'history' ? 'history-search-input'
+                 : currentTab === 'explore' ? 'explore-input'
+                 : 'queue-search-input';
+      const _sel = document.getElementById(_sid);
+      if (_sel) _sel.focus();
     }
   });
 });
@@ -1727,18 +1856,12 @@ window.addEventListener('DOMContentLoaded', () => {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
-  clearSearch();
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById(`tab-${tab}`).classList.add('active');
   document.getElementById(`panel-${tab}`).classList.add('active');
-  const isExplore = tab === 'explore';
   const isHistory = tab === 'history';
-  document.getElementById('mode-toggle').style.display = (isHistory || isExplore) ? 'none' : '';
-  // Hide the main toolbar search box on Explore (it has its own)
-  document.querySelector('.search-wrap').style.display = isExplore ? 'none' : '';
-  document.getElementById('search-match-count').style.display = isExplore ? 'none' : '';
-  // Refresh button stays visible on all tabs, just changes its action
+  const isExplore = tab === 'explore';
   if (isHistory) {
     document.getElementById('btn-refresh').onclick = loadHistory;
     loadHistory();
@@ -1827,27 +1950,28 @@ function parseImages(raw) {
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderQueue() {
   const list = document.getElementById('queue-list');
-  const filtered = searchQuery
-    ? queueArticles.filter(a => articleMatchesQuery(a, searchQuery))
+  const filtered = queueSearchQuery
+    ? queueArticles.filter(a => articleMatchesQuery(a, queueSearchQuery))
     : queueArticles;
 
-  setMatchCount(filtered.length, queueArticles.length);
+  const metaEl = document.getElementById('queue-search-meta');
+  if (metaEl) metaEl.textContent = queueSearchQuery ? `${filtered.length} / ${queueArticles.length} match${filtered.length !== 1 ? 'es' : ''}` : '';
 
   if (!filtered.length) {
-    const msg = searchQuery
-      ? `No results for "<strong>${escHtml(searchQuery)}</strong>"`
+    const msg = queueSearchQuery
+      ? `No results for "<strong>${escHtml(queueSearchQuery)}</strong>"`
       : loadingQueue ? '' : 'No articles in queue for this mode.';
-    list.innerHTML = `<div class="empty-state"><div class="icon">${searchQuery ? '🔍' : '📭'}</div><p>${msg}</p></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="icon">${queueSearchQuery ? '🔍' : '📭'}</div><p>${msg}</p></div>`;
     return;
   }
-  list.innerHTML = filtered.map((a, i) => buildCard(a, i, false, searchQuery)).join('');
+  list.innerHTML = filtered.map((a, i) => buildCard(a, i, false, queueSearchQuery)).join('');
 }
 
 function renderHistory() {
   const list = document.getElementById('history-list');
   let filtered = historyArticles;
   if (historyFilter !== 'all') filtered = historyArticles.filter(a => a.status === historyFilter);
-  if (searchQuery) filtered = filtered.filter(a => articleMatchesQuery(a, searchQuery));
+  if (historySearchQuery) filtered = filtered.filter(a => articleMatchesQuery(a, historySearchQuery));
 
   const counts = { all: historyArticles.length, read: 0, skipped: 0, declined: 0 };
   historyArticles.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
@@ -1858,16 +1982,17 @@ function renderHistory() {
   });
 
   const baseCount = historyFilter === 'all' ? historyArticles.length : historyArticles.filter(a => a.status === historyFilter).length;
-  setMatchCount(filtered.length, baseCount);
+  const metaEl = document.getElementById('history-search-meta');
+  if (metaEl) metaEl.textContent = historySearchQuery ? `${filtered.length} / ${baseCount} match${filtered.length !== 1 ? 'es' : ''}` : '';
 
   if (!filtered.length) {
-    const msg = searchQuery
-      ? `No results for "<strong>${escHtml(searchQuery)}</strong>"`
+    const msg = historySearchQuery
+      ? `No results for "<strong>${escHtml(historySearchQuery)}</strong>"`
       : `No ${historyFilter === 'all' ? '' : historyFilter + ' '}articles yet.`;
-    list.innerHTML = `<div class="empty-state"><div class="icon">${searchQuery ? '🔍' : '🗂️'}</div><p>${msg}</p></div>`;
+    list.innerHTML = `<div class="empty-state"><div class="icon">${historySearchQuery ? '🔍' : '🗂️'}</div><p>${msg}</p></div>`;
     return;
   }
-  list.innerHTML = filtered.map((a, i) => buildCard(a, i, true, searchQuery)).join('');
+  list.innerHTML = filtered.map((a, i) => buildCard(a, i, true, historySearchQuery)).join('');
 }
 
 // ── Build card ────────────────────────────────────────────────────────────────
@@ -1908,7 +2033,7 @@ function buildCard(a, index, isHistory, query = '') {
 
   return `
   <div class="article-card ${isHistory ? 'history-card' : ''}" id="${cardId}" style="animation-delay:${index * 0.04}s" data-article-id="${artId}">
-    <div class="card-header">
+    <div class="card-header" onclick="toggleExpand('${cardId}',${artId})">
       <div style="flex:1;min-width:0;">
         <div class="card-meta">
           <span class="score-badge ${scoreClass}">Score ${Math.round(score)}</span>
@@ -1919,12 +2044,12 @@ function buildCard(a, index, isHistory, query = '') {
         <div class="card-title">${title}</div>
       </div>
     </div>
-    ${summary ? `
     <div class="card-body">
-      <div class="card-summary" id="sum-${cardId}" onclick="toggleExpand('${cardId}',${artId})">${summary}</div>
-      <div class="card-images"  id="imgs-${cardId}"></div>
+      ${summary ? `<div class="card-summary" id="sum-${cardId}" onclick="event.stopPropagation();toggleExpand('${cardId}',${artId})">${summary}</div>` : ''}
+      <div class="card-full-content" id="full-${cardId}"></div>
+      <div class="card-images"       id="imgs-${cardId}"></div>
       <span class="expand-hint" id="hint-${cardId}" onclick="toggleExpand('${cardId}',${artId})">${expandText}</span>
-    </div>` : ''}
+    </div>
     <div class="card-footer">
       ${actionBtns}
       <button class="btn-full-article" id="full-btn-${artId}" onclick="openFullArticle(${artId}, this)">⊞ Full Article</button>
@@ -1966,16 +2091,39 @@ async function openFullArticle(articleId, btn) {
 
 // ── Expand / collapse ─────────────────────────────────────────────────────────
 function toggleExpand(cardId, artId) {
-  const sumEl    = document.getElementById(`sum-${cardId}`);
-  const hint     = document.getElementById(`hint-${cardId}`);
-  const imgsEl   = document.getElementById(`imgs-${cardId}`);
-  if (!sumEl) return;
+  const sumEl  = document.getElementById(`sum-${cardId}`);
+  const hint   = document.getElementById(`hint-${cardId}`);
+  const imgsEl = document.getElementById(`imgs-${cardId}`);
+  const fullEl = document.getElementById(`full-${cardId}`);
+  if (!hint && !fullEl) return;
 
-  const expanded  = sumEl.classList.toggle('expanded');
+  // Determine current state from fullEl visibility (works with or without summary)
+  const expanded = fullEl ? fullEl.style.display !== 'block' : !(sumEl && sumEl.classList.contains('expanded'));
+
+  if (sumEl) sumEl.classList.toggle('expanded', expanded);
   const images    = imageStore[artId] || [];
   const hasImages = images.length > 0;
 
   if (expanded) {
+    // Fetch and render full article content inline
+    if (fullEl && !fullEl.dataset.loaded) {
+      fullEl.dataset.loaded = '1';
+      fullEl.style.display  = 'block';
+      fullEl.innerHTML = '<p style="color:var(--dim);font-size:0.82rem;padding:0.25rem 0">Loading…</p>';
+      authFetch(`${BASE}/article-data/${artId}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(data => {
+          const raw = data.full_content || '';
+          contentCache[artId] = raw.toLowerCase();
+          const paras = raw.split(/\n+/).filter(p => p.trim());
+          fullEl.innerHTML = paras.length
+            ? paras.map(p => `<p>${escHtml(p)}</p>`).join('')
+            : `<p style="color:var(--muted);font-style:italic">Full content not available.</p>`;
+        })
+        .catch(() => { fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Could not load article.</p>`; });
+    } else if (fullEl) {
+      fullEl.style.display = 'block';
+    }
     if (hasImages && imgsEl && !imgsEl.dataset.loaded) {
       imgsEl.dataset.loaded = '1';
       imgsEl.innerHTML = buildImageStrip(images, artId);
@@ -2003,6 +2151,7 @@ function toggleExpand(cardId, artId) {
     }
     if (hint) hint.innerHTML = 'collapse ↑';
   } else {
+    if (fullEl) fullEl.style.display = 'none';
     if (imgsEl) {
       imgsEl.classList.remove('visible');
       setTimeout(() => imgsEl.classList.remove('animating'), 300);
@@ -2226,6 +2375,12 @@ function showToast(msg, type = 'ok') {
 function onExploreInput() {
   const val = document.getElementById('explore-input').value.trim();
   document.getElementById('explore-clear').style.display = val ? 'inline-block' : 'none';
+  clearTimeout(exploreDebounce);
+  if (val.length >= 2) {
+    exploreDebounce = setTimeout(runExplore, 400);
+  } else if (!val) {
+    exploreDebounce = setTimeout(loadRecentArticles, 200);
+  }
 }
 
 function clearExplore() {
@@ -2240,8 +2395,6 @@ async function loadRecentArticles() {
   if (exploreLoading) return;
   exploreLoading = true;
   exploreQuery = '';
-  const goBtn = document.querySelector('.explore-go-btn');
-  goBtn.disabled = true;
   document.getElementById('explore-meta').textContent = 'Loading recent articles…';
   document.getElementById('explore-list').innerHTML = '';
   try {
@@ -2257,20 +2410,16 @@ async function loadRecentArticles() {
     console.error('loadRecentArticles error:', e);
     document.getElementById('explore-meta').textContent = 'Failed to load articles';
   } finally {
-    goBtn.disabled = false;
     exploreLoading = false;
   }
 }
 
 async function runExplore() {
   const q = document.getElementById('explore-input').value.trim();
-  if (!q || q.length < 2) { showToast('Enter at least 2 characters', 'error'); return; }
+  if (!q || q.length < 2) { loadRecentArticles(); return; }
   if (exploreLoading) return;
   exploreLoading = true;
   exploreQuery = q;
-  const goBtn = document.querySelector('.explore-go-btn');
-  goBtn.disabled = true;
-  goBtn.textContent = '…';
   document.getElementById('explore-meta').textContent = 'Searching…';
   document.getElementById('explore-list').innerHTML = '';
 
@@ -2288,8 +2437,6 @@ async function runExplore() {
     showToast('Search failed', 'error');
     document.getElementById('explore-meta').textContent = 'Search failed';
   } finally {
-    goBtn.disabled = false;
-    goBtn.textContent = 'Search';
     exploreLoading = false;
   }
 }

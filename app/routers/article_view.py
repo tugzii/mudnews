@@ -19,7 +19,7 @@ ARTICLE_PAGE_PATH = Path("/app/app/static/mudnews-article.html")
 
 
 @router.get("/mudnews/article/{article_id}", response_class=HTMLResponse)
-async def serve_article_page(article_id: int, user: str = Depends(require_session)):
+async def serve_article_page(article_id: int):
     return ARTICLE_PAGE_PATH.read_text()
 
 
