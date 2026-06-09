@@ -48,8 +48,6 @@ async def unscored_articles(
 # POST /n8n/import-score
 # ---------------------------------------------------------------------------
 class ImportScoreRequest(BaseModel):
-    article_id: int
-    user_id:    int
     raw_response: str
 
 
@@ -59,7 +57,7 @@ async def import_score(
     user: str = Depends(require_auth),
 ):
     try:
-        parsed = parse_ai_score_payload(body.raw_response, body.article_id, body.user_id)
+        parsed = parse_ai_score_payload(body.raw_response)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
