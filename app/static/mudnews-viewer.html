@@ -2091,10 +2091,11 @@ function buildCard(a, index, isHistory, query = '') {
     ? `<span style="color:var(--dim);font-size:0.65rem;letter-spacing:0.04em;margin-left:0.25rem">· ${images.length} photo${images.length !== 1 ? 's' : ''}</span>`
     : '';
 
-  const statusIcon = { read: '✓', skipped: '→', declined: '✗' }[a.status] || '';
+  const statusIcon  = { read: '✓', skipped: '→', declined: '✗' }[a.status] || '';
+  const statusLabel = { read: 'Archived', skipped: 'Skipped', declined: 'Declined' }[a.status] || a.status;
   const statusBadge = isHistory && a.status ? `
     <span class="status-indicator status-${a.status}">
-      ${statusIcon} ${a.status}
+      ${statusIcon} ${statusLabel}
     </span>` : '';
 
   const actionBtns = !isHistory ? `
