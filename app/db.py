@@ -222,7 +222,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
     if mode == "latest":
         score_min   = LATEST_SCORE_MIN
         pool_size   = LATEST_POOL_SIZE
-        time_clause = "AND a.created_at >= NOW() - INTERVAL '1 hour' * %s"
+        time_clause = "AND aus.ai_scored_at >= NOW() - INTERVAL '1 hour' * %s"
         time_params = (LATEST_WINDOW_HOURS,)
     elif mode == "top":
         score_min   = TOP_SCORE_MIN
@@ -279,12 +279,13 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
         is_rescued = rescued_at is not None
 
         if mode == "latest":
-            # Pool A: apply time-decay to both threshold check and ranking score.
-            # Rescued articles bypass the effective-score floor.
+            # Pool A: filter and rank by raw ai_score — recency is already
+            # enforced by the ai_scored_at time window in the SQL query, so
+            # applying time-decay on top would zero-out old-but-recent scores.
             eff = scoring.effective_score(ai_score or 0, decay, created_at)
-            if not is_rescued and eff < score_min:
+            if not is_rescued and (ai_score or 0) < score_min:
                 continue
-            sort_key = eff
+            sort_key = ai_score or 0
         else:
             # Pool B: filter and rank by raw ai_score — do NOT apply decay.
             # Rescued articles bypass the score floor entirely.
