@@ -32,10 +32,6 @@ async def get_queue(
 
     articles = []
     for art in articles_raw:
-        # Only show articles whose full content has been fetched
-        if art["full_content"] is None:
-            continue
-
         rec = {
             "article_id":      art["article_id"],
             "title":           art["title"],

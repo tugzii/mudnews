@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.auth import require_session
-from app.db import get_conn
+from app.db import get_conn, update_article_content
+from app.scraper import fetch_article_content as _scrape
 
 router = APIRouter()
 
@@ -74,6 +75,16 @@ async def get_article_data(article_id: int, user: str = Depends(require_session)
             images = []
     else:
         images = []
+
+    # On-demand content fetch: if the article was scored but not yet scraped,
+    # fetch it now so the inline expand works without a separate n8n run.
+    if not full_content and url:
+        full_content, images = _scrape(url, None, images or None)
+        conn2 = get_conn()
+        try:
+            update_article_content(conn2, aid, full_content, images)
+        finally:
+            conn2.close()
 
     return JSONResponse({
         "article_id":   aid,
