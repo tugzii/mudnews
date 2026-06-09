@@ -59,6 +59,7 @@ async def import_score(
     try:
         parsed = parse_ai_score_payload(body.raw_response)
     except ValueError as exc:
+        logger.error("Score parse failed: %s | raw: %.200s", exc, body.raw_response)
         raise HTTPException(status_code=422, detail=str(exc))
 
     conn = get_conn()
@@ -75,12 +76,21 @@ async def import_score(
     finally:
         conn.close()
 
+    if not result["inserted"]:
+        logger.warning(
+            "Score conflict — article_id=%d user_id=%d already scored, skipped.",
+            parsed["article_id"], parsed["user_id"],
+        )
+
     return JSONResponse({
         "article_id":    parsed["article_id"],
         "user_id":       parsed["user_id"],
         "score":         parsed["score"],
+        "category":      parsed["category"],
+        "decay":         parsed["decay"],
         "inserted":      result["inserted"],
         "decay_updated": result["decay_updated"],
+        "status":        "ok" if result["inserted"] else "skipped",
     })
 
 
