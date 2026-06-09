@@ -339,6 +339,7 @@
   /* Removed all font/size overrides — history-card only dims opacity */
   .history-card { opacity: 0.88; }
 
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   .card-header {
     cursor: pointer;
     padding: 1rem 1.25rem 0.75rem;
@@ -2005,6 +2006,7 @@ function buildCard(a, index, isHistory, query = '') {
   const artUrl   = a.url || '#';
   const category = query ? highlightQuery(a.category || '', query) : escHtml(a.category || '');
   const age      = timeAgo(a.published_at || a.created_at || a.actioned_at);
+  const desc     = a.description || '';
   const cardId   = `${isHistory ? 'h' : 'q'}-card-${artId}`;
 
   const scoreClass = score >= 75 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low';
@@ -2041,7 +2043,8 @@ function buildCard(a, index, isHistory, query = '') {
           ${category ? `<span class="category-tag">${category}</span>` : ''}
           <span class="age-tag">${age}</span>
         </div>
-        <div class="card-title">${title}</div>
+        <div class="card-title"${desc ? ` title="${escHtml(desc)}"` : ""}>${title}</div>
+        ${desc ? `<span class="sr-only">${escHtml(desc)}</span>` : ""}
       </div>
     </div>
     <div class="card-body">

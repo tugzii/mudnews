@@ -32,9 +32,9 @@ async def search_articles(
         raise HTTPException(status_code=403, detail="User not found")
     user_id = row[0]
 
-    pattern = f"%{q}%"
+    tsq = "websearch_to_tsquery('english', %s)"
     cur.execute(
-        """
+        f"""
         SELECT
             a.id, a.title, a.description, a.url,
             a.published_at, a.created_at, a.decay,
@@ -52,19 +52,20 @@ async def search_articles(
                ON c.id = aus.category_id
         LEFT JOIN article_interactions ai
                ON ai.article_id = a.id AND ai.user_id = %s
-        WHERE (a.title ILIKE %s OR a.description ILIKE %s)
+        WHERE a.search_vector @@ {tsq}
         ORDER BY
             CASE
                 WHEN aus.rescued_at IS NOT NULL
                  AND (ai.status IS NULL OR ai.status = 'presented')
-                THEN 1
+                THEN 0
                 WHEN ai.status = 'read' THEN 2
-                ELSE 3
+                ELSE 1
             END,
-            a.created_at DESC
+            ts_rank_cd(a.search_vector, {tsq}) DESC,
+            a.published_at DESC
         LIMIT %s
         """,
-        (user_id, user_id, pattern, pattern, limit),
+        (user_id, user_id, q, q, limit),
     )
 
     cols = [

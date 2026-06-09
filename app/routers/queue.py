@@ -35,6 +35,7 @@ async def get_queue(
         rec = {
             "article_id":      art["article_id"],
             "title":           art["title"],
+            "description":     art.get("description") or "",
             "url":             art["url"],
             "decay":           art["decay"],
             "created_at":      art["created_at"].isoformat(),

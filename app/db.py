@@ -245,7 +245,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
     cur.execute(
         f"""
         SELECT
-            a.id, a.url, a.title, a.voice_summary, a.full_content, a.images,
+            a.id, a.url, a.title, a.description, a.voice_summary, a.full_content, a.images,
             aus.ai_score, a.decay, a.created_at, a.published_at,
             c.name AS category,
             aus.rescued_at
@@ -271,7 +271,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
 
     candidates = []
     for row in cur.fetchall():
-        aid, url, title, voice_summary, full_content, images, ai_score, decay, created_at, published_at, category, rescued_at = row
+        aid, url, title, description, voice_summary, full_content, images, ai_score, decay, created_at, published_at, category, rescued_at = row
 
         # Treat NULL decay as 'moderate' consistently (mirrors DEFAULT_DECAY and
         # the fix_null_decay() migration).
@@ -297,6 +297,7 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
             "article_id":      aid,
             "url":             url,
             "title":           title,
+            "description":     description,
             "voice_summary":   voice_summary,
             "full_content":    full_content,
             "images":          images or [],
