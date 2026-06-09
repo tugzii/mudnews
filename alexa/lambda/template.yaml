@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: MudNews Alexa skill Lambda
+
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  MudNewsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.12
+      Environment:
+        Variables:
+          FETCH_URL: ""        # https://your-host/rss-stories
+          READARTICLE_URL: "" # https://your-host/read-article
+          MARKREAD_URL: ""    # https://your-host/mark-read
+          ALEXA_API_KEY: ""
+          WEBCALL_TIMEOUT: "15"
+          EXPLICIT_CONTROLS: "false"
+          LOG_LEVEL: "INFO"
+      Events:
+        AlexaSkillEvent:
+          Type: AlexaSkill

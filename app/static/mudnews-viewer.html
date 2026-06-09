@@ -1,0 +1,2472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MudNews</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0a0a0c;
+    --surface:    #111116;
+    --surface2:   #18181f;
+    --border:     #252530;
+    --border2:    #32323f;
+    --text:       #e2e2e8;
+    --muted:      #666672;
+    --dim:        #44444f;
+    --accent:     #7c6af7;
+    --accent2:    #a594fa;
+    --green:      #3ecf8e;
+    --green-dim:  #1a5c3f;
+    --yellow:     #f5a623;
+    --yellow-dim: #5c3d0a;
+    --red:        #f05555;
+    --red-dim:    #5c1a1a;
+    --blue:       #4da8f5;
+    --blue-dim:   #0d3a5c;
+    --fast:       #f05555;
+    --moderate:   #f5a623;
+    --slow:       #3ecf8e;
+    --mono:       'IBM Plex Mono', monospace;
+    --sans:       'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Scanline overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.04) 2px,
+      rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,12,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -0.03em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--accent); }
+    50%       { opacity: 0.5; box-shadow: 0 0 4px var(--accent); }
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  /* Username chip shown next to sign-out */
+  .user-chip {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    white-space: nowrap;
+    /* hidden until we have a name */
+    display: none;
+  }
+  .user-chip.visible { display: flex; }
+  .user-chip::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+
+  .btn-logout {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── Tabs ── */
+  .sticky-nav {
+    position: sticky;
+    top: 56px;
+    z-index: 90;
+    background: rgba(17,17,22,0.97);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 0 var(--border);
+  }
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    background: transparent;
+  }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.85rem 1.5rem;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent2);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 600;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    padding: 0 5px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    transition: background 0.2s;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    padding: 0.75rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    flex-wrap: wrap;
+  }
+
+  .mode-toggle {
+    display: flex;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.9rem;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mode-btn.active { background: var(--accent); color: #fff; }
+  .mode-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
+  .toolbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-refresh {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .btn-refresh:hover { border-color: var(--accent); color: var(--accent2); }
+  .btn-refresh:disabled { opacity: 0.4; cursor: default; }
+
+  .status-text {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Main layout ── */
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem 4rem;
+  }
+
+  /* ── Panel visibility ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.4; }
+  .empty-state p { font-size: 0.85rem; letter-spacing: 0.04em; }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Article card ── */
+  .article-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.15s;
+    animation: slideIn 0.3s ease both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .article-card:hover { border-color: var(--border2); }
+
+  .article-card.fading {
+    transition: opacity 0.3s, transform 0.3s, max-height 0.4s, margin 0.4s, padding 0.4s;
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  /* ── History card: identical to queue, just slightly dimmed ── */
+  /* Removed all font/size overrides — history-card only dims opacity */
+  .history-card { opacity: 0.88; }
+
+  .card-header {
+    padding: 1rem 1.25rem 0.75rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+
+  .score-badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .score-high { background: rgba(124,106,247,0.2); color: var(--accent2); border: 1px solid rgba(124,106,247,0.3); }
+  .score-mid  { background: rgba(77,168,245,0.15);  color: var(--blue);   border: 1px solid rgba(77,168,245,0.25); }
+  .score-low  { background: rgba(102,102,114,0.15); color: var(--muted);  border: 1px solid var(--border); }
+
+  .decay-badge {
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .decay-fast     { background: rgba(240,85,85,0.15);  color: var(--fast);     border: 1px solid rgba(240,85,85,0.25); }
+  .decay-moderate { background: rgba(245,166,35,0.15); color: var(--moderate); border: 1px solid rgba(245,166,35,0.25); }
+  .decay-slow     { background: rgba(62,207,142,0.15); color: var(--slow);     border: 1px solid rgba(62,207,142,0.25); }
+
+  .category-tag { font-size: 0.65rem; color: #9090a0; letter-spacing: 0.04em; white-space: nowrap; }
+  .age-tag      { font-size: 0.65rem; color: #7a7a8a; margin-left: auto;      white-space: nowrap; }
+
+  /* ── Article ID chip ── */
+  .id-chip {
+    font-family: var(--mono);
+    font-size: 0.63rem;
+    color: #7a7a8a;
+    letter-spacing: 0.07em;
+    padding: 0.1rem 0.38rem;
+    border: 1px solid #32323f;
+    border-radius: 3px;
+    background: var(--surface2);
+    white-space: nowrap;
+    opacity: 1;
+  }
+  .id-chip::before { content: '#'; opacity: 0.7; }
+
+  /* ── Card title: single definition, used by both queue and history ── */
+  .card-title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: inline-block;
+    /* color: var(--yellow);
+    background: rgba(245,166,35,0.08);
+    border: 1px solid rgba(245,166,35,0.25); */
+    color: #e09928;
+    background: rgba(245,166,35,0.07);
+    border: 1px solid rgba(245,166,35,0.22);
+    border-radius: 4px;
+    padding: 0.2rem 0.55rem;
+    margin-top: 0.15rem;
+    /* no font-size or opacity overrides anywhere below */
+  }
+
+  .card-body { padding: 0 1.25rem 0; }
+
+  .card-summary {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #b2b2c2;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .card-summary.expanded { display: block; overflow: visible; }
+
+  /* History summary: same clamp as queue (3 lines), was 2 before — unified */
+  .history-card .card-summary:not(.expanded) { -webkit-line-clamp: 3; }
+
+  .expand-hint {
+    font-size: 0.68rem;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    margin-top: 0.3rem;
+    display: block;
+  }
+  .expand-hint:hover { color: var(--accent2); }
+
+  /* ── Image gallery ── */
+  .card-images {
+    margin-top: 1rem;
+    display: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .card-images.visible  { display: block; opacity: 1; transform: translateY(0); }
+  .card-images.animating { display: block; }
+
+  .images-strip-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .strip-arrow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+    line-height: 1;
+    flex-shrink: 0;
+    z-index: 2;
+  }
+  .strip-arrow:hover:not(:disabled) {
+    background: var(--surface);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+  .strip-arrow:disabled {
+    opacity: 0.2;
+    cursor: default;
+    border-color: var(--border);
+  }
+  .strip-arrow-prev { margin-right: 0.4rem; }
+  .strip-arrow-next { margin-left:  0.4rem; }
+
+  .images-scroll {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    gap: 0.65rem;
+    overflow-x: scroll;
+    padding: 0 0 0.75rem 0;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thick;
+    scrollbar-color: var(--muted) var(--surface2);
+    scroll-behavior: smooth;
+  }
+  .images-scroll::-webkit-scrollbar       { height: 12px; display: block; }
+  .images-scroll::-webkit-scrollbar-track { background: var(--surface2); border-radius: 4px; margin: 0 4px; }
+  .images-scroll::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; border: 2px solid var(--surface2); }
+  .images-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent2); }
+
+  .img-item {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    width: clamp(180px, 55vw, 260px);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .img-item:hover { border-color: var(--border2); transform: translateY(-2px); }
+
+  .img-item img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    display: block;
+    background: var(--surface2);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .img-item img.loaded  { opacity: 1; }
+  .img-item img.errored { display: none; }
+
+  .img-skeleton {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    position: absolute;
+    top: 0; left: 0;
+    border-radius: 4px 4px 0 0;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .img-skeleton.hidden { display: none; }
+
+  .img-caption {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.67rem;
+    line-height: 1.4;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .images-count-hint {
+    font-size: 0.65rem;
+    color: var(--dim);
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .images-count-hint::before {
+    content: '';
+    display: inline-block;
+    width: 10px; height: 1px;
+    background: var(--border2);
+  }
+
+  /* ── Lightbox ── */
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 9000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    padding: 1rem;
+    cursor: zoom-out;
+  }
+  #lightbox.open { display: flex; animation: lbIn 0.2s ease; }
+  @keyframes lbIn { from { opacity: 0; } to { opacity: 1; } }
+
+  #lightbox-img {
+    display: block;
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: 6px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.8);
+    object-fit: contain;
+    cursor: default;
+  }
+
+  #lightbox-caption {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.6);
+    text-align: center;
+    max-width: min(560px, 90vw);
+    letter-spacing: 0.03em;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+
+  #lightbox-close {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    font-size: 1rem;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, border-color 0.15s;
+    z-index: 1;
+  }
+  #lightbox-close:hover { color: var(--text); border-color: var(--muted); }
+
+  #lightbox-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+  }
+
+  /* Image sits in a fixed-width slot so the centre never moves between photos.
+     The slot width is set via JS once all images are preloaded. */
+  #lightbox-img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Arrows are absolutely positioned relative to #lightbox-inner so they
+     never shift regardless of which photo is showing. */
+  #lightbox-prev,
+  #lightbox-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-size: 1.4rem;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    z-index: 1;
+    user-select: none;
+    line-height: 1;
+  }
+  #lightbox-prev { left: 0; }
+  #lightbox-next { right: 0; }
+
+  #lightbox-prev:hover:not(:disabled),
+  #lightbox-next:hover:not(:disabled) {
+    background: var(--surface);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+  #lightbox-prev:disabled,
+  #lightbox-next:disabled {
+    opacity: 0.2;
+    cursor: default;
+    border-color: var(--border);
+  }
+
+  #lightbox-counter {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.08em;
+    pointer-events: none;
+  }
+
+  /* ── Card footer ── */
+  .card-footer {
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Action buttons ── */
+  .btn-action {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .btn-action:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-read {
+    background: rgba(62,207,142,0.1);
+    border-color: rgba(62,207,142,0.35);
+    color: var(--green);
+  }
+  .btn-read:hover:not(:disabled) {
+    background: rgba(62,207,142,0.2);
+    border-color: var(--green);
+    box-shadow: 0 0 12px rgba(62,207,142,0.2);
+  }
+
+  .btn-skip {
+    background: rgba(102,102,114,0.12);
+    border-color: rgba(102,102,114,0.35);
+    color: var(--muted);
+  }
+  .btn-skip:hover:not(:disabled) { background: rgba(102,102,114,0.22); border-color: var(--muted); color: var(--text); }
+
+  .btn-decline {
+    background: rgba(240,85,85,0.08);
+    border-color: rgba(240,85,85,0.25);
+    color: var(--red);
+  }
+  .btn-decline:hover:not(:disabled) { background: rgba(240,85,85,0.18); border-color: var(--red); }
+
+  .btn-url {
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: all 0.15s;
+    font-family: var(--mono);
+  }
+  .btn-url:hover { color: var(--blue); border-color: var(--blue); }
+
+  .footer-id-chip {
+    font-family: var(--mono);
+    font-size: 0.63rem;
+    color: #7a7a8a;
+    letter-spacing: 0.06em;
+    margin-left: auto;
+    padding: 0.1rem 0;
+    white-space: nowrap;
+    user-select: all;
+  }
+
+  .btn-full-article {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    border: 1px solid rgba(124,106,247,0.3);
+    background: rgba(124,106,247,0.07);
+    color: var(--accent2);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .btn-full-article:hover:not(:disabled) {
+    background: rgba(124,106,247,0.16);
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(124,106,247,0.18);
+  }
+  .btn-full-article:disabled { opacity: 0.4; cursor: default; }
+
+  /* ── Speed Read button ── */
+  .btn-speed-read {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem;
+    border-radius: 4px;
+    border: 1px solid rgba(255,80,80,0.3);
+    background: rgba(255,80,80,0.07);
+    color: #ff6b6b;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .btn-speed-read:hover {
+    background: rgba(255,80,80,0.16);
+    border-color: rgba(255,80,80,0.7);
+    box-shadow: 0 0 10px rgba(255,80,80,0.18);
+  }
+  #sr-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.96);
+    z-index: 9100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+  }
+  #sr-modal.open { display: flex; }
+  #sr-word-display {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #fff;
+    min-height: 1.4em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    font-family: var(--mono); /* monospace so every char is same width */
+    width: min(700px, 90vw);
+  }
+  /* Three columns: left text right-aligned | ORP letter centred | right text left-aligned.
+     The ORP column is always at the visual centre of the display area. */
+  #sr-left  { flex: 1; text-align: right; color: #fff; }
+  #sr-orp   { flex: 0 0 auto; color: #ff4444; text-align: center; }
+  #sr-right { flex: 1; text-align: left;  color: #fff; }
+  #sr-progress-wrap {
+    position: relative;
+    width: min(560px, 88vw);
+    height: 20px;           /* tall hit area for easy clicking */
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  #sr-progress-track {
+    position: absolute;
+    left: 0; right: 0;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #sr-progress-bar {
+    height: 100%;
+    background: #ff4444;
+    width: 0%;
+    transition: width 0.08s linear;
+    border-radius: 2px;
+  }
+  #sr-progress-knob {
+    position: absolute;
+    width: 14px; height: 14px;
+    background: #ff4444;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    left: 0%;
+    transform: translateX(-50%);
+    transition: left 0.08s linear, transform 0.15s, box-shadow 0.15s;
+    cursor: grab;
+    box-shadow: 0 0 6px rgba(255,68,68,0.5);
+    z-index: 1;
+  }
+  #sr-progress-knob:active { cursor: grabbing; transform: translateX(-50%) scale(1.3); }
+  #sr-progress-wrap:hover #sr-progress-knob { box-shadow: 0 0 12px rgba(255,68,68,0.8); }
+  #sr-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  #sr-controls button {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #sr-controls button:hover { border-color: var(--muted); background: var(--surface); }
+  #sr-play-btn { border-color: rgba(255,80,80,0.4) !important; color: #ff6b6b !important; }
+  #sr-play-btn:hover { background: rgba(255,80,80,0.1) !important; }
+  #sr-wpm-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  #sr-wpm-slider { width: 120px; accent-color: #ff4444; }
+  #sr-wpm-label { color: #ff6b6b; min-width: 4ch; }
+  #sr-font-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  #sr-font-slider { width: 100px; accent-color: #ff4444; }
+  #sr-font-label  { color: #ff6b6b; min-width: 3ch; }
+  #sr-status {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.08em;
+  }
+  #sr-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    padding: 2.5rem 2rem 2rem;
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.02);
+  }
+  #sr-close {
+    position: absolute;
+    top: 0.6rem; right: 0.6rem;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    font-size: 1rem;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, border-color 0.15s;
+    z-index: 1;
+  }
+  #sr-close:hover { color: var(--text); border-color: var(--muted); }
+
+  /* ── Explore tab ── */
+  .explore-search-wrap {
+    padding: 1rem 2rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .explore-search-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .explore-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 0.55rem 0.85rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s, width 0.2s;
+  }
+  .explore-input::placeholder { color: var(--dim); }
+  .explore-input:focus { border-color: var(--accent); }
+  .explore-go-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1.1rem;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+  .explore-go-btn:hover { opacity: 0.85; }
+  .explore-go-btn:disabled { opacity: 0.45; cursor: default; }
+  .explore-clear-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--muted);
+    padding: 0.5rem 0.65rem;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    transition: color 0.15s;
+  }
+  .explore-clear-btn:hover { color: var(--text); }
+  .explore-meta {
+    margin-top: 0.45rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+    min-height: 1.1em;
+  }
+  /* Explore result card */
+  .explore-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.15s;
+  }
+  .explore-card:hover { border-color: var(--border2); }
+  .explore-card.in-queue-card {
+    border-color: rgba(124,106,247,0.3);
+    background: rgba(124,106,247,0.03);
+  }
+  .explore-card.is-rescued {
+    border-color: rgba(62,207,142,0.35);
+    background: rgba(62,207,142,0.04);
+  }
+  .explore-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    margin-bottom: 0.45rem;
+  }
+  .explore-card-title {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.97rem;
+    color: var(--text);
+    margin-bottom: 0.35rem;
+    line-height: 1.35;
+  }
+  .explore-card-desc {
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 0.6rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .explore-card-reason {
+    font-size: 0.75rem;
+    color: var(--dim);
+    font-style: italic;
+    border-left: 2px solid var(--border2);
+    padding-left: 0.6rem;
+    margin-bottom: 0.65rem;
+    line-height: 1.5;
+  }
+  .explore-card-footer {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .rescued-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(62,207,142,0.15);
+    color: var(--green);
+    border: 1px solid rgba(62,207,142,0.35);
+    border-radius: 4px;
+    padding: 0.18rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .interaction-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.68rem;
+    padding: 0.18rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .interaction-badge.read     { background: rgba(62,207,142,0.12); color: var(--green);  border: 1px solid rgba(62,207,142,0.25); }
+  .interaction-badge.skipped  { background: rgba(245,166,35,0.12);  color: var(--yellow); border: 1px solid rgba(245,166,35,0.25); }
+  .interaction-badge.declined { background: rgba(240,85,85,0.12);   color: var(--red);    border: 1px solid rgba(240,85,85,0.25); }
+  .btn-rescue {
+    background: rgba(62,207,142,0.1);
+    color: var(--green);
+    border: 1px solid rgba(62,207,142,0.3);
+    border-radius: 6px;
+    padding: 0.38rem 0.85rem;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .btn-rescue:hover { background: rgba(62,207,142,0.2); }
+  .btn-rescue:disabled { opacity: 0.45; cursor: default; }
+  .btn-rescue.rescued { opacity: 0.6; cursor: default; }
+  .btn-rescue.in-queue {
+    background: rgba(124,106,247,0.12);
+    color: var(--accent2);
+    border-color: rgba(124,106,247,0.3);
+    cursor: pointer;
+    opacity: 1;
+  }
+  .btn-rescue.in-queue:hover {
+    background: rgba(124,106,247,0.22);
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-family: var(--mono);
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+  .status-pill.in-queue   { color: var(--accent2); background: rgba(124,106,247,0.12); border: 1px solid rgba(124,106,247,0.25); }
+  .status-pill.summarised { color: var(--green);   background: rgba(62,207,142,0.10);  border: 1px solid rgba(62,207,142,0.25); }
+  .status-pill.awaiting   { color: var(--yellow);  background: rgba(245,166,35,0.10);  border: 1px solid rgba(245,166,35,0.25); }
+  .status-pill.unfetched  { color: var(--muted);   background: rgba(102,102,114,0.10); border: 1px solid var(--border); }
+  .unsummarised-note {
+    font-size: 0.72rem;
+    color: var(--dim);
+    font-style: italic;
+  }
+  /* ── Status indicator (history) ── */
+  .status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-family: var(--mono);
+  }
+  .status-read     { background: var(--green-dim);  color: var(--green); }
+  .status-skipped  { background: var(--yellow-dim); color: var(--yellow); }
+  .status-declined { background: var(--red-dim);    color: var(--red); }
+
+  /* ── History filter row ── */
+  .filter-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-btn {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 3px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .filter-btn:hover { color: var(--text); border-color: var(--muted); }
+  .filter-btn.active-read     { background: var(--green-dim);  color: var(--green);   border-color: var(--green); }
+  .filter-btn.active-skipped  { background: var(--yellow-dim); color: var(--yellow);  border-color: var(--yellow); }
+  .filter-btn.active-declined { background: var(--red-dim);    color: var(--red);     border-color: var(--red); }
+  .filter-btn.active-all      { background: rgba(124,106,247,0.15); color: var(--accent2); border-color: var(--accent); }
+
+  .filter-count { font-size: 0.65rem; opacity: 0.8; }
+
+  /* ── Toast ── */
+  #toast-container {
+    position: fixed;
+    bottom: 1.5rem; right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    pointer-events: none;
+  }
+
+  .toast {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    padding: 0.6rem 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    animation: toastIn 0.2s ease, toastOut 0.3s ease 2.5s forwards;
+    max-width: 300px;
+    pointer-events: auto;
+  }
+  .toast-ok      { border-left: 3px solid var(--green); }
+  .toast-skip    { border-left: 3px solid var(--yellow); }
+  .toast-decline { border-left: 3px solid var(--red); }
+  .toast-error   { border-left: 3px solid var(--red); color: var(--red); }
+
+  @keyframes toastIn  { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform:none; } }
+  @keyframes toastOut { to   { opacity:0; transform: translateX(20px); } }
+
+  /* ── Search ── */
+  .search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-input {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 0.35rem 2rem 0.35rem 0.75rem;
+    border-radius: 4px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.15s, width 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .search-input::placeholder { color: var(--dim); }
+  .search-input:focus { border-color: var(--accent); width: 260px; }
+
+  .search-clear {
+    position: absolute;
+    right: 0.4rem;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0.1rem 0.2rem;
+    display: none;
+    transition: color 0.15s;
+  }
+  .search-clear:hover { color: var(--text); }
+  .search-clear.visible { display: block; }
+
+  .search-match-count {
+    font-size: 0.68rem;
+    color: var(--dim);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  mark {
+    background: rgba(124,106,247,0.25);
+    color: var(--accent2);
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    header   { padding: 0 1rem; }
+    main     { padding: 1rem 1rem 4rem; }
+    .tabs    { padding: 0 1rem; }
+    .toolbar { padding: 0.75rem 1rem; }
+    .tab     { padding: 0.75rem 0.9rem; }
+    .card-footer { flex-wrap: wrap; }
+    .img-item { width: clamp(160px, 72vw, 240px); }
+    .user-chip { display: none !important; } /* hide on very small screens to save space */
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    MudNews
+  </div>
+  <div class="header-controls">
+    <div class="user-chip" id="user-chip">
+      <span id="user-chip-name"></span>
+    </div>
+    <a href="/outpost.goauthentik.io/sign_out" class="btn-logout">⏻ Sign out</a>
+  </div>
+</header>
+
+<div class="sticky-nav">
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('queue')" id="tab-queue">
+    Queue <span class="tab-badge" id="badge-queue">0</span>
+  </button>
+  <button class="tab" onclick="switchTab('history')" id="tab-history">
+    History <span class="tab-badge" id="badge-history" style="background:var(--muted)">0</span>
+  </button>
+  <button class="tab" onclick="switchTab('explore')" id="tab-explore">
+    Explore
+  </button>
+</div>
+
+<div class="toolbar">
+  <div class="mode-toggle" id="mode-toggle">
+    <button class="mode-btn"        onclick="setMode('top')"    id="btn-mode-top">Top</button>
+    <button class="mode-btn active" onclick="setMode('latest')" id="btn-mode-latest">Latest</button>
+  </div>
+  <div class="search-wrap">
+    <input class="search-input" id="search-input" type="text" placeholder="Search…" autocomplete="off" spellcheck="false" oninput="onSearchInput()">
+    <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear search">✕</button>
+  </div>
+  <span class="search-match-count" id="search-match-count"></span>
+  <div class="toolbar-right">
+    <span class="status-text" id="status-text"></span>
+    <button class="btn-refresh" id="btn-refresh" onclick="loadQueue()">↻ Refresh</button>
+  </div>
+</div>
+</div>
+
+<main>
+  <div class="panel active" id="panel-queue">
+    <div id="queue-list"></div>
+  </div>
+  <div class="panel" id="panel-history">
+    <div class="filter-row" id="history-filters">
+      <button class="filter-btn active-all" onclick="setHistoryFilter('all')"      id="hf-all">All</button>
+      <button class="filter-btn"            onclick="setHistoryFilter('read')"     id="hf-read">✓ Read</button>
+      <button class="filter-btn"            onclick="setHistoryFilter('skipped')"  id="hf-skipped">→ Skipped</button>
+      <button class="filter-btn"            onclick="setHistoryFilter('declined')" id="hf-declined">✗ Declined</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
+  <div class="panel" id="panel-explore">
+    <div class="explore-search-wrap">
+      <div class="explore-search-row">
+        <input class="explore-input" id="explore-input" type="text"
+               placeholder="Search all articles…" autocomplete="off" spellcheck="false"
+               oninput="onExploreInput()" onkeydown="if(event.key==='Enter')runExplore()">
+        <button class="explore-go-btn" onclick="runExplore()">Search</button>
+        <button class="explore-clear-btn" id="explore-clear" onclick="clearExplore()" style="display:none">✕</button>
+      </div>
+      <div class="explore-meta" id="explore-meta"></div>
+    </div>
+    <div id="explore-list"></div>
+  </div>
+</main>
+
+
+<!-- Speed Read Modal -->
+<div id="sr-modal">
+  <div id="sr-inner">
+    <button id="sr-close" onclick="srClose()">✕</button>
+    <div id="sr-status"></div>
+    <div id="sr-word-display"><span id="sr-left"></span><span id="sr-orp"></span><span id="sr-right"></span></div>
+    <div id="sr-progress-wrap">
+      <div id="sr-progress-track"><div id="sr-progress-bar"></div></div>
+      <div id="sr-progress-knob"></div>
+    </div>
+    <div id="sr-controls">
+    <button onclick="srRestart()">↺ Restart</button>
+    <button id="sr-play-btn" onclick="srTogglePlay()">▶ Play</button>
+    <div id="sr-wpm-wrap">
+      <span>WPM</span>
+      <input id="sr-wpm-slider" type="range" min="100" max="800" step="10" value="250" oninput="srWpmChange(this.value)">
+      <span id="sr-wpm-label">250</span>
+    </div>
+    <div id="sr-font-wrap">
+      <span>SIZE</span>
+      <input id="sr-font-slider" type="range" min="1" max="6" step="0.5" value="2.5" oninput="srFontChange(this.value)">
+      <span id="sr-font-label">2.5</span>
+    </div>
+    </div>
+  </div>
+</div>
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox(event)">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <div id="lightbox-inner">
+    <button id="lightbox-prev" onclick="stepLightbox(-1)">&#8249;</button>
+    <div id="lightbox-img-wrap">
+      <img id="lightbox-img" src="" alt="">
+    </div>
+    <button id="lightbox-next" onclick="stepLightbox(1)">&#8250;</button>
+  </div>
+  <div id="lightbox-counter"></div>
+  <div id="lightbox-caption"></div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const BASE = '/mudnews';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentMode     = 'latest';
+let currentTab      = 'queue';
+let exploreResults  = [];
+let exploreQuery    = '';
+let exploreDebounce = null;
+let exploreLoading  = false;
+let historyFilter   = 'all';
+let queueArticles   = [];
+let historyArticles = [];
+let loadingQueue    = false;
+let searchQuery     = '';
+let searchDebounce  = null;
+
+function debounce(fn, ms) {
+  return (...args) => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => fn(...args), ms);
+  };
+}
+
+const debouncedRender = debounce(() => {
+  if (currentTab === 'queue') renderQueue();
+  else renderHistory();
+}, 150);
+
+const imageStore = {};
+
+// ── Username ──────────────────────────────────────────────────────────────────
+// Tries /me endpoint (expected to return { username: "..." } or { name: "..." }).
+// If your backend instead injects a header or template var, adapt here.
+// Gracefully silent on failure — the chip simply stays hidden.
+async function loadCurrentUser() {
+  try {
+    const r = await fetch(`${BASE}/me`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const name = data.username || data.name || data.email || data.user || '';
+    if (name) {
+      const chip = document.getElementById('user-chip');
+      document.getElementById('user-chip-name').textContent = name;
+      chip.classList.add('visible');
+    }
+  } catch {
+    // No /me endpoint yet — that's fine, chip stays hidden
+  }
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function onSearchInput() {
+  const input = document.getElementById('search-input');
+  searchQuery = input.value.trim().toLowerCase();
+  document.getElementById('search-clear').classList.toggle('visible', searchQuery.length > 0);
+  debouncedRender();
+}
+
+function clearSearch() {
+  searchQuery = '';
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').classList.remove('visible');
+  document.getElementById('search-match-count').textContent = '';
+  if (currentTab === 'queue') renderQueue();
+  else renderHistory();
+}
+
+function articleMatchesQuery(a, q) {
+  if (!q) return true;
+  return (a.title         || '').toLowerCase().includes(q)
+      || (a.|| (a.category      || '').toLowerCase().includes(q);
+}
+
+function highlightQuery(text, q) {
+  if (!q || !text) return escHtml(text || '');
+  const escaped = escHtml(text);
+  const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return escaped.replace(new RegExp(`(${escapedQ})`, 'gi'), '<mark>$1</mark>');
+}
+
+// ── Speed Read ────────────────────────────────────────────────────────────────
+let srWords   = [];
+let srIndex   = 0;
+let srWpm     = 0; // set from slider on open
+let srTimer   = null;
+let srPlaying = false;
+// Generation counter: incremented on every srStop so stale countdown ticks
+// know to bail out without touching state.
+let srGen     = 0;
+
+function srRenderWord(w) {
+  const n = w.length;
+  // Middle character: floor(n/2) gives index 0 for 1-char, 1 for 2-3 chars,
+  // 2 for 4-5 chars, etc. — always biased left on even-length words.
+  const pos = Math.floor((n - 1) / 2);
+  document.getElementById("sr-left").textContent  = w.slice(0, pos);
+  document.getElementById("sr-orp").textContent   = w[pos] || "";
+  document.getElementById("sr-right").textContent = w.slice(pos + 1);
+}
+
+function srOpen(text) {
+  srStop();
+  const plain = text.replace(/<[^>]*>/g, " ").replace(/&[a-z#0-9;]+;/gi, " ").replace(/\s+/g, " ").trim();
+  srWords = plain.split(" ").filter(w => w.length > 0);
+  srIndex = 0;
+  document.getElementById("sr-modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+  // Sync font size from slider so changing the HTML value attribute is enough
+  const wpmSlider = document.getElementById("sr-wpm-slider");
+  srWpm = parseInt(wpmSlider.value);
+  document.getElementById("sr-wpm-label").textContent = wpmSlider.value;
+  const slider = document.getElementById("sr-font-slider");
+  srFontChange(slider.value);
+  document.getElementById("sr-font-label").textContent = slider.value;
+  srRender();
+  document.getElementById("sr-play-btn").textContent = "▶ Play";
+}
+
+function srClose() {
+  srStop();
+  document.getElementById("sr-modal").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function srRender() {
+  const w = srWords[srIndex] || "";
+  srRenderWord(w);
+  const pct = srWords.length > 1 ? (srIndex / (srWords.length - 1)) * 100 : 0;
+  document.getElementById("sr-progress-bar").style.width = pct + "%";
+  document.getElementById("sr-progress-knob").style.left  = pct + "%";
+  document.getElementById("sr-status").textContent =
+    (srIndex + 1) + " / " + srWords.length + " words";
+}
+
+function srDelay(word) {
+  const base  = 60000 / srWpm;
+  const extra = word.length > 8 ? base * 0.3 : 0;
+  const punct = /[.!?,;:]$/.test(word) ? base * 0.5 : 0;
+  return base + extra + punct;
+}
+
+function srStep(gen) {
+  // Bail if this tick belongs to a cancelled generation
+  if (gen !== srGen) return;
+  if (srIndex >= srWords.length - 1) { srStop(); return; }
+  srIndex++;
+  srRender();
+  srTimer = setTimeout(() => srStep(gen), srDelay(srWords[srIndex]));
+}
+
+function srStop() {
+  srGen++;                // invalidates any in-flight countdown or step timeouts
+  clearTimeout(srTimer);
+  srTimer   = null;
+  srPlaying = false;
+  const btn = document.getElementById("sr-play-btn");
+  if (btn) btn.textContent = "▶ Play";
+}
+
+function srStart() {
+  if (srPlaying) return;  // guard against double-calls
+  if (srIndex >= srWords.length - 1) srIndex = 0;
+  srPlaying = true;
+  document.getElementById("sr-play-btn").textContent = "⏸ Pause";
+
+  // Capture the generation at the moment we start so countdown ticks
+  // can detect if srStop() was called while they were waiting.
+  const myGen = ++srGen;
+  let count = 3;
+
+  const tick = () => {
+    if (myGen !== srGen) return;  // paused/stopped since this countdown began
+    if (count > 0) {
+      // Show countdown number where the word normally appears
+      document.getElementById("sr-left").textContent  = "";
+      document.getElementById("sr-orp").textContent   = count;
+      document.getElementById("sr-right").textContent = "";
+      document.getElementById("sr-orp").style.color   = "#ff4444";
+      count--;
+      srTimer = setTimeout(tick, 700);
+    } else {
+      // Restore ORP colour and start playback
+      document.getElementById("sr-orp").style.color = "#ff4444";
+      srRender();
+      srTimer = setTimeout(() => srStep(myGen), srDelay(srWords[srIndex]));
+    }
+  };
+  tick();
+}
+
+function srTogglePlay() {
+  if (srPlaying) { srStop(); } else { srStart(); }
+}
+
+function srRestart() {
+  srStop();
+  srIndex = 0;
+  srRender();
+}
+
+function srScrubTo(pct) {
+  // Jump to a position 0-100% in the word list
+  pct = Math.max(0, Math.min(100, pct));
+  srIndex = Math.round((pct / 100) * (srWords.length - 1));
+  srRender();
+}
+
+function srWrapPos(e, wrap) {
+  const rect = wrap.getBoundingClientRect();
+  const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+  return (x / rect.width) * 100;
+}
+
+function srInitScrubber() {
+  const wrap = document.getElementById("sr-progress-wrap");
+  let dragging = false;
+
+  wrap.addEventListener("mousedown", e => {
+    dragging = true;
+    const wasPlaying = srPlaying;
+    if (wasPlaying) srStop();
+    srScrubTo(srWrapPos(e, wrap));
+    wrap._wasPlaying = wasPlaying;
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    srScrubTo(srWrapPos(e, wrap));
+  });
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+    if (wrap._wasPlaying) srStart();
+  });
+
+  // Touch support
+  wrap.addEventListener("touchstart", e => {
+    dragging = true;
+    const wasPlaying = srPlaying;
+    if (wasPlaying) srStop();
+    srScrubTo(srWrapPos(e, wrap));
+    wrap._wasPlaying = wasPlaying;
+  }, { passive: true });
+  window.addEventListener("touchmove", e => {
+    if (!dragging) return;
+    srScrubTo(srWrapPos(e, wrap));
+  }, { passive: true });
+  window.addEventListener("touchend", () => {
+    if (!dragging) return;
+    dragging = false;
+    if (wrap._wasPlaying) srStart();
+  });
+}
+
+function srWpmChange(val) {
+  srWpm = parseInt(val);
+  document.getElementById("sr-wpm-label").textContent = val;
+}
+
+function srFontChange(val) {
+  document.getElementById("sr-word-display").style.fontSize = val + "rem";
+  document.getElementById("sr-font-label").textContent = val;
+}
+
+// ── Lightbox state ────────────────────────────────────────────────────────────
+let lightboxImages = [];
+let lightboxIndex  = 0;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadCurrentUser();
+  loadQueue();
+  loadHistory();
+  srInitScrubber();
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (document.getElementById('sr-modal').classList.contains('open')) { srClose(); return; }
+      if (searchQuery) { clearSearch(); return; }
+      closeLightbox();
+    }
+    if (e.key === ' ' && document.getElementById('sr-modal').classList.contains('open')) { e.preventDefault(); srTogglePlay(); return; }
+    if (e.key === 'ArrowLeft')  stepLightbox(-1);
+    if (e.key === 'ArrowRight') stepLightbox(1);
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      document.getElementById('search-input').focus();
+    }
+  });
+});
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  clearSearch();
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  const isExplore = tab === 'explore';
+  const isHistory = tab === 'history';
+  document.getElementById('mode-toggle').style.display = (isHistory || isExplore) ? 'none' : '';
+  // Hide the main toolbar search box on Explore (it has its own)
+  document.querySelector('.search-wrap').style.display = isExplore ? 'none' : '';
+  document.getElementById('search-match-count').style.display = isExplore ? 'none' : '';
+  // Refresh button stays visible on all tabs, just changes its action
+  if (isHistory) {
+    document.getElementById('btn-refresh').onclick = loadHistory;
+    loadHistory();
+  } else if (isExplore) {
+    document.getElementById('btn-refresh').onclick = () => exploreQuery ? runExplore() : loadRecentArticles();
+  } else {
+    document.getElementById('btn-refresh').onclick = loadQueue;
+  }
+  if (isExplore) {
+    setTimeout(() => document.getElementById('explore-input').focus(), 50);
+    if (!exploreQuery && !exploreResults.length) loadRecentArticles();
+  }
+}
+
+// ── Mode ──────────────────────────────────────────────────────────────────────
+function setMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  document.getElementById('btn-mode-top').classList.toggle('active', mode === 'top');
+  document.getElementById('btn-mode-latest').classList.toggle('active', mode === 'latest');
+  queueArticles = [];
+  loadQueue();
+}
+
+// ── Queue ─────────────────────────────────────────────────────────────────────
+async function loadQueue() {
+  if (loadingQueue) return;
+  loadingQueue = true;
+  const refreshBtn = document.getElementById('btn-refresh');
+  refreshBtn.disabled = true;
+  setStatus('<span class="spinner"></span>Loading…');
+  queueArticles = [];
+  renderQueue();
+  try {
+    const r = await fetch(`${BASE}/get-queue?mode=${currentMode}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    queueArticles = Array.isArray(data) ? data : (data.articles || []);
+    queueArticles.forEach(a => {
+      const id = a.article_id || a.id;
+      if (a.images) imageStore[id] = parseImages(a.images);
+    });
+  } catch(e) {
+    console.error('Queue fetch error:', e);
+    showToast('Connection error loading queue', 'error');
+  }
+  renderQueue();
+  updateBadge('queue', queueArticles.length);
+  setStatus(queueArticles.length
+    ? `${queueArticles.length} article${queueArticles.length !== 1 ? 's' : ''} ready`
+    : 'No articles');
+  refreshBtn.disabled = false;
+  loadingQueue = false;
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  setStatus('<span class="spinner"></span>Loading history…');
+  try {
+    const r = await fetch(`${BASE}/get-history`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    historyArticles = Array.isArray(data) ? data : (data.articles || []);
+    historyArticles.forEach(a => {
+      const id = a.article_id || a.id;
+      if (a.images) imageStore[id] = parseImages(a.images);
+    });
+    updateBadge('history', historyArticles.length);
+    if (document.getElementById('tab-history').classList.contains('active')) renderHistory();
+    setStatus('');
+  } catch(e) {
+    console.error('History fetch error:', e);
+    showToast('Could not load history', 'error');
+    setStatus('History unavailable');
+  }
+}
+
+// ── Parse images ──────────────────────────────────────────────────────────────
+function parseImages(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return []; } }
+  return [];
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderQueue() {
+  const list = document.getElementById('queue-list');
+  const filtered = searchQuery
+    ? queueArticles.filter(a => articleMatchesQuery(a, searchQuery))
+    : queueArticles;
+
+  setMatchCount(filtered.length, queueArticles.length);
+
+  if (!filtered.length) {
+    const msg = searchQuery
+      ? `No results for "<strong>${escHtml(searchQuery)}</strong>"`
+      : loadingQueue ? '' : 'No articles in queue for this mode.';
+    list.innerHTML = `<div class="empty-state"><div class="icon">${searchQuery ? '🔍' : '📭'}</div><p>${msg}</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map((a, i) => buildCard(a, i, false, searchQuery)).join('');
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  let filtered = historyArticles;
+  if (historyFilter !== 'all') filtered = historyArticles.filter(a => a.status === historyFilter);
+  if (searchQuery) filtered = filtered.filter(a => articleMatchesQuery(a, searchQuery));
+
+  const counts = { all: historyArticles.length, read: 0, skipped: 0, declined: 0 };
+  historyArticles.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+  ['all','read','skipped','declined'].forEach(f => {
+    const el = document.getElementById(`hf-${f}`);
+    el.innerHTML = { all: 'All', read: '✓ Read', skipped: '→ Skipped', declined: '✗ Declined' }[f]
+      + ` <span class="filter-count">(${counts[f]})</span>`;
+  });
+
+  const baseCount = historyFilter === 'all' ? historyArticles.length : historyArticles.filter(a => a.status === historyFilter).length;
+  setMatchCount(filtered.length, baseCount);
+
+  if (!filtered.length) {
+    const msg = searchQuery
+      ? `No results for "<strong>${escHtml(searchQuery)}</strong>"`
+      : `No ${historyFilter === 'all' ? '' : historyFilter + ' '}articles yet.`;
+    list.innerHTML = `<div class="empty-state"><div class="icon">${searchQuery ? '🔍' : '🗂️'}</div><p>${msg}</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map((a, i) => buildCard(a, i, true, searchQuery)).join('');
+}
+
+// ── Build card ────────────────────────────────────────────────────────────────
+function buildCard(a, index, isHistory, query = '') {
+  const artId    = a.article_id || a.id;
+  const score    = a.ai_score || a.effective_score || 0;
+  const decay    = a.decay || 'moderate';
+  const title    = query ? highlightQuery(a.title || 'Untitled', query) : escHtml(a.title || 'Untitled');
+  const summary  = query ? highlightQuery(a.query) : escHtml(a.const artUrl   = a.url || '#';
+  const category = query ? highlightQuery(a.category || '', query) : escHtml(a.category || '');
+  const age      = timeAgo(a.created_at || a.actioned_at);
+  const cardId   = `${isHistory ? 'h' : 'q'}-card-${artId}`;
+
+  const scoreClass = score >= 75 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low';
+  const decayLabel = decay.charAt(0).toUpperCase() + decay.slice(1);
+
+  const images    = imageStore[artId] || [];
+  const hasImages = images.length > 0;
+  const imgHint   = hasImages
+    ? `<span style="color:var(--dim);font-size:0.65rem;letter-spacing:0.04em;margin-left:0.25rem">· ${images.length} photo${images.length !== 1 ? 's' : ''}</span>`
+    : '';
+
+  const statusIcon = { read: '✓', skipped: '→', declined: '✗' }[a.status] || '';
+  const statusBadge = isHistory && a.status ? `
+    <span class="status-indicator status-${a.status}">
+      ${statusIcon} ${a.status}
+    </span>` : '';
+
+  const actionBtns = !isHistory ? `
+    <button class="btn-action btn-read"    onclick="markArticle(${artId},'read',    '${cardId}')">✓ Read</button>
+    <!-- Skip hidden — was used for Alexa voice mode; kept for potential future use -->
+    <button class="btn-action btn-skip"    onclick="markArticle(${artId},'skipped', '${cardId}')" style="display:none">→ Skip</button>
+    <button class="btn-action btn-decline" onclick="markArticle(${artId},'declined','${cardId}')">✗ Decline</button>
+  ` : statusBadge;
+
+  const expandText = hasImages ? `expand ↓ ${imgHint}` : 'expand ↓';
+
+  return `
+  <div class="article-card ${isHistory ? 'history-card' : ''}" id="${cardId}" style="animation-delay:${index * 0.04}s" data-article-id="${artId}">
+    <div class="card-header">
+      <div style="flex:1;min-width:0;">
+        <div class="card-meta">
+          <span class="score-badge ${scoreClass}">Score ${Math.round(score)}</span>
+          <span class="decay-badge decay-${decay}">${decayLabel}</span>
+          ${category ? `<span class="category-tag">${category}</span>` : ''}
+          <span class="age-tag">${age}</span>
+        </div>
+        <div class="card-title">${title}</div>
+      </div>
+    </div>
+    ${summary ? `
+    <div class="card-body">
+      <div class="card-summary" id="sum-${cardId}" onclick="toggleExpand('${cardId}',${artId})">${summary}</div>
+      <div class="card-images"  id="imgs-${cardId}"></div>
+      <span class="expand-hint" id="hint-${cardId}" onclick="toggleExpand('${cardId}',${artId})">${expandText}</span>
+    </div>` : ''}
+    <div class="card-footer">
+      ${actionBtns}
+      <button class="btn-full-article" id="full-btn-${artId}" onclick="openFullArticle(${artId}, this)">⊞ Full Article</button>
+      ${summary ? `<button class="btn-speed-read" onclick="srOpen(document.getElementById('sum-${cardId}').innerHTML)">⚡ Speed Read</button>` : ''}
+      <span class="footer-id-chip">#${artId}</span>
+      <a href="${escHtml(artUrl)}" target="_blank" rel="noopener" class="btn-url">↗ Source</a>
+    </div>
+  </div>`;
+}
+
+// ── Full Article ──────────────────────────────────────────────────────────────
+async function openFullArticle(articleId, btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Loading…';
+  }
+  try {
+    // Pre-fetch to confirm the article exists and wake the endpoint,
+    // then open the page in a new tab.  The tab's own JS will fetch again
+    // to render — this first call is just a cheap "does it exist?" check
+    // so we can show a sensible error without losing focus.
+    const r = await fetch(`${BASE}/article-data/${articleId}`);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      showToast(err.detail || `Article not available (${r.status})`, 'error');
+      return;
+    }
+    window.open(`${BASE}/article/${articleId}`, '_blank', 'noopener');
+  } catch (e) {
+    console.error('openFullArticle error:', e);
+    showToast('Could not open article — connection error', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⊞ Full Article';
+    }
+  }
+}
+
+// ── Expand / collapse ─────────────────────────────────────────────────────────
+function toggleExpand(cardId, artId) {
+  const sumEl    = document.getElementById(`sum-${cardId}`);
+  const hint     = document.getElementById(`hint-${cardId}`);
+  const imgsEl   = document.getElementById(`imgs-${cardId}`);
+  if (!sumEl) return;
+
+  const expanded  = sumEl.classList.toggle('expanded');
+  const images    = imageStore[artId] || [];
+  const hasImages = images.length > 0;
+
+  if (expanded) {
+    if (hasImages && imgsEl && !imgsEl.dataset.loaded) {
+      imgsEl.dataset.loaded = '1';
+      imgsEl.innerHTML = buildImageStrip(images, artId);
+      imgsEl.querySelectorAll('img[data-src]').forEach(img => {
+        const skeletonId = img.dataset.skeletonId;
+        img.onload = () => {
+          img.classList.add('loaded');
+          const skel = document.getElementById(skeletonId);
+          if (skel) skel.classList.add('hidden');
+        };
+        img.onerror = () => {
+          img.classList.add('errored');
+          const skel = document.getElementById(skeletonId);
+          if (skel) skel.classList.add('hidden');
+          const item = img.closest('.img-item');
+          if (item) item.style.display = 'none';
+        };
+        img.src = img.dataset.src;
+      });
+      wireStripArrows(artId);
+    }
+    if (imgsEl && hasImages) {
+      imgsEl.classList.add('animating');
+      requestAnimationFrame(() => requestAnimationFrame(() => imgsEl.classList.add('visible')));
+    }
+    if (hint) hint.innerHTML = 'collapse ↑';
+  } else {
+    if (imgsEl) {
+      imgsEl.classList.remove('visible');
+      setTimeout(() => imgsEl.classList.remove('animating'), 300);
+    }
+    const imgHint = hasImages
+      ? `<span style="color:var(--dim);font-size:0.65rem;letter-spacing:0.04em;margin-left:0.25rem">· ${images.length} photo${images.length !== 1 ? 's' : ''}</span>`
+      : '';
+    if (hint) hint.innerHTML = hasImages ? `expand ↓ ${imgHint}` : 'expand ↓';
+  }
+}
+
+// ── Wire strip arrows ─────────────────────────────────────────────────────────
+function wireStripArrows(artId) {
+  const scroll  = document.getElementById(`scroll-${artId}`);
+  const prevBtn = document.getElementById(`sprev-${artId}`);
+  const nextBtn = document.getElementById(`snext-${artId}`);
+  if (!scroll || !prevBtn || !nextBtn) return;
+
+  function updateArrows() {
+    const atStart = scroll.scrollLeft <= 4;
+    const atEnd   = scroll.scrollLeft >= scroll.scrollWidth - scroll.clientWidth - 4;
+    prevBtn.disabled = atStart;
+    nextBtn.disabled = atEnd;
+  }
+
+  function scrollByOne(dir) {
+    const firstItem = scroll.querySelector('.img-item');
+    const step = firstItem ? firstItem.offsetWidth + 10 : 270;
+    scroll.scrollBy({ left: dir * step, behavior: 'smooth' });
+  }
+
+  prevBtn.addEventListener('click', e => { e.stopPropagation(); scrollByOne(-1); });
+  nextBtn.addEventListener('click', e => { e.stopPropagation(); scrollByOne(1); });
+  scroll.addEventListener('scroll', updateArrows, { passive: true });
+  updateArrows();
+}
+
+// ── Build image strip ─────────────────────────────────────────────────────────
+function buildImageStrip(images, artId) {
+  const storeId = `imgdata-${artId}`;
+  const items = images.map((img, i) => {
+    const skId = `skel-${artId}-${i}`;
+    const url  = escHtml(img.url || '');
+    const alt  = escHtml(img.alt || '');
+    const cap  = escHtml(img.caption || img.alt || '');
+    return `
+      <div class="img-item" onclick="openLightboxByIndex('${storeId}',${i})">
+        <div class="img-skeleton" id="${skId}"></div>
+        <img data-src="${url}" data-skeleton-id="${skId}" alt="${alt}">
+        ${cap ? `<div class="img-caption">${cap}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <script type="application/json" id="${storeId}">${JSON.stringify(images)}<\/script>
+    <div class="images-count-hint">${images.length} photograph${images.length !== 1 ? 's' : ''} · tap to enlarge</div>
+    <div class="images-strip-wrap">
+      <button class="strip-arrow strip-arrow-prev" id="sprev-${artId}" disabled>&#8249;</button>
+      <div class="images-scroll" id="scroll-${artId}">${items}</div>
+      <button class="strip-arrow strip-arrow-next" id="snext-${artId}">&#8250;</button>
+    </div>`;
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function openLightboxByIndex(storeId, index) {
+  const el = document.getElementById(storeId);
+  if (!el) return;
+  lightboxImages = JSON.parse(el.textContent);
+  lightboxIndex  = index;
+
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderLightbox();
+
+  // Preload all images to find the widest display width.
+  // The image wrap is locked to that width so the photo centre — and
+  // therefore both arrows — never shift position between photos.
+  const ARROW_W   = 40;  // px, matches CSS width of buttons
+  const ARROW_PAD = 12;  // gap between arrow edge and image area
+  const maxViewW  = window.innerWidth  * 0.92 - (ARROW_W + ARROW_PAD) * 2;
+  const maxViewH  = window.innerHeight * 0.85;
+
+  let loaded = 0;
+  let maxW   = 0;
+
+  lightboxImages.forEach(imgData => {
+    const probe = new Image();
+    probe.onload = probe.onerror = () => {
+      if (probe.naturalWidth && probe.naturalHeight) {
+        const scale = Math.min(
+          maxViewW / probe.naturalWidth,
+          maxViewH / probe.naturalHeight,
+          1  // never upscale
+        );
+        maxW = Math.max(maxW, Math.round(probe.naturalWidth * scale));
+      }
+      if (++loaded === lightboxImages.length && maxW > 0) {
+        // Lock the image slot to the widest photo's display width.
+        // Arrows are absolutely positioned, so inner needs padding to
+        // keep them from overlapping the image.
+        const wrap  = document.getElementById('lightbox-img-wrap');
+        const inner = document.getElementById('lightbox-inner');
+        wrap.style.width   = maxW + 'px';
+        inner.style.paddingLeft  = (ARROW_W + ARROW_PAD) + 'px';
+        inner.style.paddingRight = (ARROW_W + ARROW_PAD) + 'px';
+      }
+    };
+    probe.src = imgData.url || '';
+  });
+}
+
+function renderLightbox() {
+  const img     = lightboxImages[lightboxIndex];
+  const total   = lightboxImages.length;
+  const prevBtn = document.getElementById('lightbox-prev');
+  const nextBtn = document.getElementById('lightbox-next');
+
+  document.getElementById('lightbox-img').src             = img.url || '';
+  document.getElementById('lightbox-caption').textContent = img.caption || img.alt || '';
+  document.getElementById('lightbox-counter').textContent = total > 1 ? `${lightboxIndex + 1} / ${total}` : '';
+
+  prevBtn.disabled = lightboxIndex === 0;
+  nextBtn.disabled = lightboxIndex === total - 1;
+}
+
+function stepLightbox(dir) {
+  const next = lightboxIndex + dir;
+  if (next < 0 || next >= lightboxImages.length) return;
+  lightboxIndex = next;
+  renderLightbox();
+}
+
+function closeLightbox(e) {
+  if (e && e.target !== document.getElementById('lightbox') && e.target !== document.getElementById('lightbox-close') && e.target !== document.getElementById('lightbox-inner')) return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+  document.getElementById('lightbox-img-wrap').style.width = '';
+  document.getElementById('lightbox-inner').style.paddingLeft  = '';
+  document.getElementById('lightbox-inner').style.paddingRight = '';
+  document.getElementById('lightbox-inner').style.minWidth = '';
+  lightboxImages = [];
+  document.body.style.overflow = '';
+}
+
+// ── Mark article ──────────────────────────────────────────────────────────────
+async function markArticle(articleId, status, cardId) {
+  const card = document.getElementById(cardId);
+  if (card) card.querySelectorAll('.btn-action').forEach(b => b.disabled = true);
+  try {
+    const r = await fetch(`${BASE}/mark-read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_id: articleId, status })
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const toastType = { read: 'ok', skipped: 'skip', declined: 'decline' }[status] || 'ok';
+    const toastMsg  = { read: '✓ Marked as read', skipped: '→ Skipped', declined: '✗ Declined' }[status];
+    showToast(toastMsg, toastType);
+    if (card) {
+      card.classList.add('fading');
+      setTimeout(() => {
+        card.remove();
+        queueArticles = queueArticles.filter(a => (a.article_id || a.id) !== articleId);
+        updateBadge('queue', queueArticles.length);
+        if (!document.querySelectorAll('#queue-list .article-card').length) renderQueue();
+      }, 350);
+    }
+    loadHistory();
+  } catch(e) {
+    console.error('markArticle error:', e);
+    showToast('Failed to mark article', 'error');
+    if (card) card.querySelectorAll('.btn-action').forEach(b => b.disabled = false);
+  }
+}
+
+// ── History filter ────────────────────────────────────────────────────────────
+function setHistoryFilter(f) {
+  historyFilter = f;
+  ['all','read','skipped','declined'].forEach(x => {
+    const el = document.getElementById(`hf-${x}`);
+    el.className = 'filter-btn' + (x === f ? ` active-${x}` : '');
+  });
+  renderHistory();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function setStatus(html)         { document.getElementById('status-text').innerHTML = html; }
+function updateBadge(tab, count) { document.getElementById(`badge-${tab}`).textContent = count; }
+function setMatchCount(matched, total) {
+  const el = document.getElementById('search-match-count');
+  el.textContent = searchQuery ? `${matched} / ${total}` : '';
+}
+
+function showToast(msg, type = 'ok') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className   = `toast toast-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+// ── Explore ───────────────────────────────────────────────────────────────────
+function onExploreInput() {
+  const val = document.getElementById('explore-input').value.trim();
+  document.getElementById('explore-clear').style.display = val ? 'inline-block' : 'none';
+}
+
+function clearExplore() {
+  document.getElementById('explore-input').value = '';
+  document.getElementById('explore-clear').style.display = 'none';
+  exploreResults = [];
+  exploreQuery = '';
+  loadRecentArticles();
+}
+
+async function loadRecentArticles() {
+  if (exploreLoading) return;
+  exploreLoading = true;
+  exploreQuery = '';
+  const goBtn = document.querySelector('.explore-go-btn');
+  goBtn.disabled = true;
+  document.getElementById('explore-meta').textContent = 'Loading recent articles…';
+  document.getElementById('explore-list').innerHTML = '';
+  try {
+    const r = await fetch(`${BASE}/recent-articles?limit=50`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    exploreResults = data.articles || [];
+    const count = exploreResults.length;
+    document.getElementById('explore-meta').textContent =
+      count ? `${count} most recent article${count !== 1 ? 's' : ''}` : 'No articles found';
+    renderExplore();
+  } catch(e) {
+    console.error('loadRecentArticles error:', e);
+    document.getElementById('explore-meta').textContent = 'Failed to load articles';
+  } finally {
+    goBtn.disabled = false;
+    exploreLoading = false;
+  }
+}
+
+async function runExplore() {
+  const q = document.getElementById('explore-input').value.trim();
+  if (!q || q.length < 2) { showToast('Enter at least 2 characters', 'error'); return; }
+  if (exploreLoading) return;
+  exploreLoading = true;
+  exploreQuery = q;
+  const goBtn = document.querySelector('.explore-go-btn');
+  goBtn.disabled = true;
+  goBtn.textContent = '…';
+  document.getElementById('explore-meta').textContent = 'Searching…';
+  document.getElementById('explore-list').innerHTML = '';
+
+  try {
+    const r = await fetch(`${BASE}/search-articles?q=${encodeURIComponent(q)}&limit=50`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    exploreResults = data.articles || [];
+    const count = exploreResults.length;
+    document.getElementById('explore-meta').textContent =
+      count ? `${count} result${count !== 1 ? 's' : ''} for "${q}"` : `No results for "${q}"`;
+    renderExplore();
+  } catch(e) {
+    console.error('Explore fetch error:', e);
+    showToast('Search failed', 'error');
+    document.getElementById('explore-meta').textContent = 'Search failed';
+  } finally {
+    goBtn.disabled = false;
+    goBtn.textContent = 'Search';
+    exploreLoading = false;
+  }
+}
+
+function renderExplore() {
+  const list = document.getElementById('explore-list');
+  if (!exploreResults.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No results for "<strong>${escHtml(exploreQuery)}</strong>"</p></div>`;
+    return;
+  }
+  list.innerHTML = exploreResults.map((a, i) => buildExploreCard(a, i)).join('');
+}
+
+function buildExploreCard(a, index) {
+  const artId        = a.article_id || a.id;
+  const score        = a.ai_score != null ? a.ai_score : null;
+  const scoreClass   = score == null ? 'score-low' : score >= 75 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low';
+  const scoreLabel   = score != null ? `Score ${Math.round(score)}` : 'Unscored';
+  const decay        = a.decay || 'moderate';
+  const decayLabel   = decay.charAt(0).toUpperCase() + decay.slice(1);
+  const age          = timeAgo(a.published_at || a.created_at);
+  const isRescued    = !!a.rescued_at;
+  const isSummarised = !!a.is_summarised;
+  const hasContent   = !!a.content_fetched;
+  const interaction  = a.interaction_status;
+  const cardId       = `ex-card-${artId}`;
+  const summary      = a.const title  = highlightQuery(a.title || 'Untitled', exploreQuery);
+  const desc   = highlightQuery(a.description || '', exploreQuery);
+  const reason = a.ai_reason ? escHtml(a.ai_reason) : '';
+
+  // ── Status pill ────────────────────────────────────────────────────────────
+  let statusPill;
+  if (isSummarised) {
+    // Summary exists — no pill needed, the content speaks for itself
+    statusPill = '';
+  } else if (hasContent) {
+    statusPill = `<span class="status-pill awaiting">⏳ Awaiting summary</span>`;
+  } else {
+    statusPill = `<span class="status-pill unfetched">⚠ Not yet fetched</span>`;
+  }
+
+  // ── Rescue + Decline buttons — only shown when summary not yet available ────
+  let rescueBtn = '';
+  if (!isSummarised) {
+    const alreadyDeclined = interaction === 'declined';
+    const declineBtn = alreadyDeclined
+      ? `<button class="btn-action btn-decline" disabled style="opacity:0.45">✗ Declined</button>`
+      : `<button class="btn-action btn-decline" onclick="markArticle(${artId},'declined','${cardId}')">✗ Decline</button>`;
+    if (isRescued) {
+      rescueBtn = `<button class="btn-rescue rescued" disabled>⬆ Rescued</button>${declineBtn}`;
+    } else {
+      const rescueLabel = hasContent
+        ? '⬆ Rescue — prioritise summary'
+        : '⬆ Rescue — fetch & summarise';
+      rescueBtn = `<button class="btn-rescue" id="rescue-btn-${artId}" onclick="rescueArticle(${artId})">${rescueLabel}</button>${declineBtn}`;
+    }
+  }
+
+  const interactionBadge = interaction && interaction !== 'presented'
+    ? `<span class="interaction-badge ${interaction}">${{read:'✓ Read', skipped:'→ Skipped', declined:'✗ Declined'}[interaction] || interaction}</span>`
+    : '';
+
+  const rescuedBadge = isRescued
+    ? `<span class="rescued-badge">⬆ Rescued</span>`
+    : '';
+
+  // ── Summary block — shown inline when available, collapsible ──────────────
+  const summaryBlock = isSummarised && summary ? `
+    <div class="card-body" style="margin-top:0.5rem">
+      <div class="card-summary" id="sum-${cardId}"
+           onclick="toggleExpand('${cardId}',${artId})">${escHtml(summary)}</div>
+      <div class="card-images" id="imgs-${cardId}"></div>
+      <span class="expand-hint" id="hint-${cardId}"
+            onclick="toggleExpand('${cardId}',${artId})">expand ↓</span>
+    </div>` : '';
+
+  // Pre-load images if available
+  if (isSummarised && a.images && a.images.length) {
+    imageStore[artId] = parseImages(a.images);
+  }
+
+  return `
+  <div class="article-card explore-card ${isRescued ? 'is-rescued' : ''}" id="${cardId}" style="animation-delay:${index * 0.03}s">
+    <div class="card-header">
+      <div style="flex:1;min-width:0;">
+        <div class="card-meta">
+          <span class="score-badge ${scoreClass}">${scoreLabel}</span>
+          <span class="decay-badge decay-${decay}">${decayLabel}</span>
+          ${a.category ? `<span class="category-tag">${escHtml(a.category)}</span>` : ''}
+          <span class="age-tag">${age}</span>
+          ${rescuedBadge}
+          ${interactionBadge}
+        </div>
+        <div class="card-title">${title}</div>
+      </div>
+    </div>
+    ${summaryBlock || (desc ? `<div class="explore-card-desc" style="padding:0 0 0.5rem">${desc}</div>` : '')}
+    ${!isSummarised && reason ? `<div class="explore-card-reason">"${reason}"</div>` : ''}
+    <div class="card-footer">
+      ${rescueBtn}
+      ${statusPill}
+      ${isSummarised ? `
+        <button class="btn-action btn-read"    onclick="markArticle(${artId},'read',    '${cardId}')">✓ Read</button>
+        <button class="btn-action btn-decline" onclick="markArticle(${artId},'declined','${cardId}')">✗ Decline</button>
+        <button class="btn-full-article" id="full-btn-${artId}" onclick="openFullArticle(${artId}, this)">⊞ Full Article</button>
+        ${summaryBlock ? `<button class="btn-speed-read" onclick="srOpen(document.getElementById('sum-${cardId}').innerHTML)">⚡ Speed Read</button>` : ''}
+      ` : ''}
+      <span class="footer-id-chip">#${artId}</span>
+      <a href="${escHtml(a.url || '#')}" target="_blank" rel="noopener" class="btn-url">↗ Source</a>
+    </div>
+  </div>`;
+}
+
+
+async function rescueArticle(articleId) {
+  const btn = document.getElementById(`rescue-btn-${articleId}`);
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Rescuing…';
+
+  try {
+    const r = await fetch(`${BASE}/rescue-article`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ article_id: articleId }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+
+    // Update button
+    btn.textContent = '⬆ Rescued';
+    btn.classList.add('rescued');
+
+    // Update the card appearance
+    const card = document.getElementById(`ex-card-${articleId}`);
+    if (card) {
+      card.classList.add('is-rescued');
+      // Inject rescued badge if not already there
+      const meta = card.querySelector('.explore-card-meta');
+      if (meta && !meta.querySelector('.rescued-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'rescued-badge';
+        badge.textContent = '⬆ Rescued';
+        meta.appendChild(badge);
+      }
+      // Update summary note
+      const footer = card.querySelector('.explore-card-footer');
+      if (footer) {
+        const note = footer.querySelector('.unsummarised-note');
+        if (note) {
+          note.style.color = '';
+          note.style.fontStyle = 'italic';
+          note.textContent = data.is_summarised ? '✓ Summary ready' : 'Queued for summary…';
+        }
+        // Show full article button if already summarised
+        if (data.is_summarised && !footer.querySelector('.btn-full-article')) {
+          const fab = document.createElement('button');
+          fab.className = 'btn-full-article';
+          fab.textContent = '⊞ Full Article';
+          fab.onclick = () => openFullArticle(articleId, fab);
+          footer.insertBefore(fab, footer.querySelector('.btn-url'));
+        }
+      }
+    }
+
+    // Update in-memory result so re-renders reflect the rescue
+    const result = exploreResults.find(a => (a.article_id || a.id) === articleId);
+    if (result) {
+      result.rescued_at = data.rescued_at;
+      result.is_summarised = data.is_summarised;
+    }
+
+    showToast(data.is_summarised
+      ? 'Article rescued — already summarised, check your Queue'
+      : 'Article rescued — will appear in your Queue once summarised',
+      'success');
+  } catch(e) {
+    console.error('Rescue error:', e);
+    btn.disabled = false;
+    btn.textContent = '⬆ Rescue';
+    showToast('Rescue failed', 'error');
+  }
+}
+
+// ── Jump to Queue (from Explore) ─────────────────────────────────────────────
+function jumpToQueue() {
+  // Rescued articles always appear in Top (no time window, pinned to top).
+  setMode('top');
+  switchTab('queue');
+  // Brief scroll to top so the article is visible immediately
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+</script>
+</body>
+</html>

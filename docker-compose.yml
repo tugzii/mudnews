@@ -1,0 +1,30 @@
+services:
+  mudnews-api:
+    build: .
+    container_name: mudnews-api
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=postgres-pi
+      - DB_NAME=feeds_db
+      - TZ=Australia/Brisbane
+    volumes:
+      - ./app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+    networks:
+      - postgresql_default
+      - mudvault_net
+      - rproxy_default
+
+networks:
+  postgresql_default:
+    external: true
+    name: postgresql_default
+  mudvault_net:
+    external: true
+  rproxy_default:
+    external: true
+    name: rproxy_default
