@@ -1551,6 +1551,7 @@ const debouncedRender = debounce(() => {
 }, 150);
 
 const imageStore = {};
+const articleContentStore = {};  // artId → full_content, populated on queue load to skip server round-trip on expand
 
 // ── Username ──────────────────────────────────────────────────────────────────
 // Tries /me endpoint (expected to return { username: "..." } or { name: "..." }).
@@ -1937,6 +1938,7 @@ async function loadQueue() {
     queueArticles.forEach(a => {
       const id = a.article_id || a.id;
       if (a.images) imageStore[id] = parseImages(a.images);
+      if (a.full_content) articleContentStore[id] = a.full_content;
     });
   } catch(e) {
     console.error('Queue fetch error:', e);
@@ -2008,6 +2010,7 @@ async function loadExploreInQueue(q = '') {
       }</p></div>`;
       return;
     }
+    articles.forEach(a => { const id = a.article_id || a.id; if (a.full_content) articleContentStore[id] = a.full_content; });
     list.innerHTML = articles.map((a, i) => buildCard(a, i, false, q || '')).join('');
   } catch(e) {
     console.error('Explore error:', e);
@@ -2185,27 +2188,36 @@ function toggleExpand(cardId, artId) {
     if (fullEl && !fullEl.dataset.loaded) {
       fullEl.dataset.loaded = '1';
       fullEl.style.display  = 'block';
-      fullEl.innerHTML = '<p style="color:var(--dim);font-size:0.82rem;padding:0.25rem 0">Loading…</p>';
-      authFetch(`${BASE}/article-data/${artId}`)
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => {
-          const raw = data.full_content || '';
-          contentCache[artId] = raw.toLowerCase();
-          const paras = raw.split(/\n+/).filter(p => p.trim());
-          if (paras.length) {
-            fullEl.innerHTML = paras.map(p => `<p>${escHtml(p)}</p>`).join('');
-          } else {
+      const cached = articleContentStore[artId];
+      if (cached) {
+        // Content already in queue payload — render instantly, no server call
+        contentCache[artId] = cached.toLowerCase();
+        const paras = cached.split(/\n+/).filter(p => p.trim());
+        fullEl.innerHTML = paras.map(p => `<p>${escHtml(p)}</p>`).join('');
+      } else {
+        fullEl.innerHTML = '<p style="color:var(--dim);font-size:0.82rem;padding:0.25rem 0">Loading…</p>';
+        authFetch(`${BASE}/article-data/${artId}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(data => {
+            const raw = data.full_content || '';
+            contentCache[artId] = raw.toLowerCase();
+            const paras = raw.split(/\n+/).filter(p => p.trim());
+            if (paras.length) {
+              fullEl.innerHTML = paras.map(p => `<p>${escHtml(p)}</p>`).join('');
+              articleContentStore[artId] = raw;
+            } else {
+              fullEl.dataset.failed = '1';
+              const srcLink = data.url ? ` <a href="${escHtml(data.url)}" target="_blank" rel="noopener" style="color:var(--accent)">↗ Open source</a>` : '';
+              fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Content unavailable — may be paywalled or blocked.${srcLink}</p>`;
+              if (hint) { hint.innerHTML = '⬇ Fetch & expand'; hint.classList.add('fetch-hint'); }
+            }
+          })
+          .catch(() => {
             fullEl.dataset.failed = '1';
-            const srcLink = data.url ? ` <a href="${escHtml(data.url)}" target="_blank" rel="noopener" style="color:var(--accent)">↗ Open source</a>` : '';
-            fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Content unavailable — may be paywalled or blocked.${srcLink}</p>`;
+            fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Could not load article.</p>`;
             if (hint) { hint.innerHTML = '⬇ Fetch & expand'; hint.classList.add('fetch-hint'); }
-          }
-        })
-        .catch(() => {
-          fullEl.dataset.failed = '1';
-          fullEl.innerHTML = `<p style="color:var(--muted);font-style:italic">Could not load article.</p>`;
-          if (hint) { hint.innerHTML = '⬇ Fetch & expand'; hint.classList.add('fetch-hint'); }
-        });
+          });
+      }
     } else if (fullEl) {
       fullEl.style.display = 'block';
     }
