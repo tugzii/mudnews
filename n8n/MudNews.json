@@ -311,7 +311,7 @@
             },
             {
               "name": "user_id",
-              "value": "={{ $json.user_id }}"
+              "value": "={{ $('Batch Prompt Builder').item.json.user_id }}"
             }
           ]
         },
