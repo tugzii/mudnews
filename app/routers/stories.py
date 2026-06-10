@@ -39,7 +39,8 @@ async def fetch_story(
     cur.close()
 
     candidates = select_article_pool(
-        conn, score_user_id, mode, scoring, extra_exclude=extra_exclude
+        conn, score_user_id, mode, scoring,
+        extra_exclude=extra_exclude, source_feed="AU",
     )
     conn.close()
 
