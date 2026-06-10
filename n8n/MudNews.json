@@ -262,7 +262,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "You are a news scoring bot. Output ONLY a JSON array. No explanation, no markdown, no code fences.\n\nEach line below starts with AID=<number> \u2014 that number is the article_id you MUST use in your output.\nDo not invent article_ids. Copy the AID= value exactly.\nuser_id for all items: {{ $json.user_id }} \u2014 copy this exactly too.\n\nOUTPUT \u2014 a flat JSON array, one object per article:\n[{\"article_id\": <AID value as integer>, \"user_id\": {{ $json.user_id }}, \"score\": <1-100>, \"reason\": \"<max 20 words>\", \"category\": \"<from list>\", \"decay\": \"<fast|moderate|slow>\"}, ...]\n\nSCORING CRITERIA:\n{{ $json.scoring_prompt }}\n\nDECAY:\nfast = stale within 24h (breaking news, live events, market moves)\nmoderate = relevant 2-4 days (developing stories, short-term policy)\nslow = valid weeks+ (research, analysis, product launches, explainers)\n\nALLOWED CATEGORIES (copy exactly):\nWorld News, Politics & Policy, Business & Finance, Technology, AI & Automation, Science & Health, Consumer & Gadgets, Entertainment & Celebrity, Lifestyle & Wellness, Sport, Crime & Justice, Weird & Viral, Opinion & Analysis, Other\n\nARTICLES TO SCORE ({{ $json.article_count }} total \u2014 output one object per article, use the AID= number as article_id):\n{{ $json.article_list }}\n\nOutput the JSON array now:",
+        "text": "You are a news scoring bot. Output ONLY a JSON array. No explanation, no markdown, no code fences.\n\nEach line below starts with AID=<number> \u2014 that number is the article_id you MUST use in your output.\nDo not invent article_ids. Copy the AID= value exactly as an integer.\n\nOUTPUT \u2014 a flat JSON array, one object per article:\n[{\"article_id\": <AID value as integer>, \"score\": <1-100>, \"reason\": \"<max 20 words>\", \"category\": \"<from list>\", \"decay\": \"<fast|moderate|slow>\"}, ...]\n\nSCORING CRITERIA:\n{{ $json.scoring_prompt }}\n\nDECAY:\nfast = stale within 24h (breaking news, live events, market moves)\nmoderate = relevant 2-4 days (developing stories, short-term policy)\nslow = valid weeks+ (research, analysis, product launches, explainers)\n\nALLOWED CATEGORIES (copy exactly):\nWorld News, Politics & Policy, Business & Finance, Technology, AI & Automation, Science & Health, Consumer & Gadgets, Entertainment & Celebrity, Lifestyle & Wellness, Sport, Crime & Justice, Weird & Viral, Opinion & Analysis, Other\n\nARTICLES TO SCORE ({{ $json.article_count }} total \u2014 output one object per article, use the AID= number as article_id):\n{{ $json.article_list }}\n\nOutput the JSON array now:",
         "batching": {
           "batchSize": 1
         }
@@ -308,6 +308,10 @@
             {
               "name": "raw_response",
               "value": "={{ $json.text }}"
+            },
+            {
+              "name": "user_id",
+              "value": "={{ $json.user_id }}"
             }
           ]
         },

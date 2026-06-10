@@ -100,6 +100,7 @@ async def import_score(
 # ---------------------------------------------------------------------------
 class ImportScoresBatchRequest(BaseModel):
     raw_response: str
+    user_id: int  # supplied by n8n Code node; LLM does not need to provide it
 
 
 @router.post("/import-scores-batch")
@@ -109,6 +110,7 @@ async def import_scores_batch(
 ):
     """
     Parse a JSON array of scores from a batch LLM response and upsert all of them.
+    user_id is supplied by the caller (n8n Code node), not by the LLM.
     Returns a summary of inserted/skipped counts.
     """
     try:
@@ -131,7 +133,7 @@ async def import_scores_batch(
                 result = insert_article_score(
                     conn,
                     article_id = p["article_id"],
-                    user_id    = p["user_id"],
+                    user_id    = body.user_id,
                     score      = p["score"],
                     reason     = p["reason"],
                     category   = p["category"],
@@ -142,8 +144,8 @@ async def import_scores_batch(
                 else:
                     skipped += 1
             except Exception as item_exc:
-                logger.warning("import-scores-batch: skipping item article_id=%s user_id=%s — %s",
-                               p.get("article_id"), p.get("user_id"), item_exc)
+                logger.warning("import-scores-batch: skipping item article_id=%s user_id=%d — %s",
+                               p.get("article_id"), body.user_id, item_exc)
                 conn.rollback()
                 errors += 1
     finally:

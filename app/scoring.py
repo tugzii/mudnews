@@ -117,7 +117,6 @@ def parse_ai_scores_batch(raw: str) -> list[dict]:
     for item in items:
         try:
             article_id = int(item["article_id"])
-            user_id    = int(item["user_id"])
             score      = int(item["score"])
         except (KeyError, TypeError, ValueError) as exc:
             logger.warning("Skipping batch item — bad fields: %s | %s", exc, item)
@@ -129,7 +128,6 @@ def parse_ai_scores_batch(raw: str) -> list[dict]:
 
         results.append({
             "article_id": article_id,
-            "user_id":    user_id,
             "score":      score,
             "reason":     item.get("reason", ""),
             "category":   item.get("category", "Other"),
