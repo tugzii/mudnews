@@ -155,10 +155,9 @@ async def score_batch_endpoint(
         scoring_prompt = user_rows[0].get("scoring_prompt") or ""
 
         for batch in _chunked(user_rows, batch_size):
-            # Stay under Gemini free-tier RPM (~10-15/min). Skip delay on first
-            # call; 4 s between subsequent calls keeps us under 15 RPM easily.
+            # Free tier: 5 RPM hard limit. 13 s between calls → ≤4.6 RPM.
             if total_batches > 0:
-                await asyncio.sleep(4)
+                await asyncio.sleep(13)
             total_batches += 1
             articles = [
                 {"article_id": r["article_id"], "title": r["title"],
