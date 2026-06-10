@@ -8,7 +8,7 @@ from psycopg2.extras import RealDictCursor, execute_values
 # queue.py and stories.py import these directly so there is only one place to
 # change them.
 LATEST_SCORE_MIN    = 50   # Pool A: minimum ai_score to be considered
-LATEST_WINDOW_HOURS = 24   # Pool A: how far back to look (hours)
+LATEST_WINDOW_HOURS = 48   # Pool A: how far back to look (hours) — must match get_unscored_articles
 LATEST_POOL_SIZE    = 30   # Pool A: max articles per user after filtering
 
 TOP_SCORE_MIN       = 70   # Pool B: minimum raw ai_score (no decay applied)
@@ -63,6 +63,7 @@ def get_unscored_articles(conn, limit: int = 200) -> list[dict]:
         WHERE u.borrows_scores_from IS NULL
           AND a.title       IS NOT NULL
           AND a.description IS NOT NULL
+          AND COALESCE(a.published_at, a.created_at) >= NOW() - INTERVAL '48 hours'
           AND NOT EXISTS (
               SELECT 1
               FROM   article_user_scores aus
