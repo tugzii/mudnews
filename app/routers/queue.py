@@ -46,6 +46,7 @@ async def get_queue(
             "category":        art["category"],
             "images":          art["images"],
             "content_fetched": art.get("content_fetched", False),
+            "source_feed":     art.get("source_feed"),
         }
 
         if rec["images"] is None:
@@ -85,7 +86,7 @@ async def explore_articles(
         cur.execute(
             f"""
             SELECT a.id, a.title, a.description, a.url, a.published_at, a.created_at,
-                   a.decay, a.images, aus.ai_score, c.name AS category
+                   a.decay, a.images, aus.ai_score, c.name AS category, a.source_feed
             FROM articles a
             LEFT JOIN article_user_scores aus ON aus.article_id = a.id AND aus.user_id = %s
             LEFT JOIN categories c ON c.id = aus.category_id
@@ -101,7 +102,7 @@ async def explore_articles(
         cur.execute(
             f"""
             SELECT a.id, a.title, a.description, a.url, a.published_at, a.created_at,
-                   a.decay, a.images, aus.ai_score, c.name AS category
+                   a.decay, a.images, aus.ai_score, c.name AS category, a.source_feed
             FROM articles a
             LEFT JOIN article_user_scores aus ON aus.article_id = a.id AND aus.user_id = %s
             LEFT JOIN categories c ON c.id = aus.category_id
@@ -115,7 +116,7 @@ async def explore_articles(
 
     articles = []
     for row in cur.fetchall():
-        aid, title, description, url, published_at, created_at, decay, images, ai_score, category = row
+        aid, title, description, url, published_at, created_at, decay, images, ai_score, category, source_feed = row
         if isinstance(images, list):
             imgs = images
         elif images:
@@ -136,6 +137,7 @@ async def explore_articles(
             "images":       imgs,
             "ai_score":     ai_score,
             "category":     category,
+            "source_feed":  source_feed,
         })
     cur.close()
     conn.close()

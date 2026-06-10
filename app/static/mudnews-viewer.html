@@ -514,6 +514,18 @@
   .decay-slow     { background: rgba(62,207,142,0.15); color: var(--slow);     border: 1px solid rgba(62,207,142,0.25); }
 
   .category-tag { font-size: 0.65rem; color: #9090a0; letter-spacing: 0.04em; white-space: nowrap; }
+  .source-pill {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    white-space: nowrap;
+    background: rgba(77,168,245,0.15);
+    color: var(--blue);
+    border: 1px solid rgba(77,168,245,0.3);
+  }
   .age-tag      { font-size: 0.65rem; color: #7a7a8a; margin-left: auto;      white-space: nowrap; }
 
   /* ── Article ID chip ── */
@@ -2307,6 +2319,7 @@ function buildCard(a, index, isHistory, query = '') {
           <span class="score-badge ${scoreClass}">Score ${Math.round(score)}</span>
           <span class="decay-badge decay-${decay}">${decayLabel}</span>
           ${category ? `<span class="category-tag">${category}</span>` : ''}
+          ${a.source_feed ? `<span class="source-pill">${escHtml(a.source_feed)}</span>` : ''}
           <span class="age-tag">${age}</span>
         </div>
         <div class="card-title">${title}</div>
@@ -2859,6 +2872,7 @@ function buildExploreCard(a, index) {
           <span class="score-badge ${scoreClass}">${scoreLabel}</span>
           <span class="decay-badge decay-${decay}">${decayLabel}</span>
           ${a.category ? `<span class="category-tag">${escHtml(a.category)}</span>` : ''}
+          ${a.source_feed ? `<span class="source-pill">${escHtml(a.source_feed)}</span>` : ''}
           <span class="age-tag">${age}</span>
           ${rescuedBadge}
           ${interactionBadge}
