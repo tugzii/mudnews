@@ -2315,10 +2315,40 @@ function toggleExpand(cardId, artId) {
           .then(data => {
             const raw = data.full_content || '';
             contentCache[artId] = raw.toLowerCase();
+            // Update image store from server response (covers sync-scrape case where
+            // content and images are fetched together on first expand)
+            if (Array.isArray(data.images) && data.images.length > 0) {
+              imageStore[artId] = parseImages(data.images);
+            }
             const paras = raw.split(/\n+/).filter(p => p.trim());
             if (paras.length) {
               fullEl.innerHTML = paras.map(p => `<p>${escHtml(p)}</p>`).join('');
               articleContentStore[artId] = raw;
+              // Render images now if they arrived with this response
+              const freshImages = imageStore[artId] || [];
+              if (freshImages.length > 0 && imgsEl && !imgsEl.dataset.loaded) {
+                imgsEl.dataset.loaded = '1';
+                imgsEl.innerHTML = buildImageStrip(freshImages, artId);
+                imgsEl.querySelectorAll('img[data-src]').forEach(img => {
+                  const skeletonId = img.dataset.skeletonId;
+                  img.onload = () => {
+                    img.classList.add('loaded');
+                    const skel = document.getElementById(skeletonId);
+                    if (skel) skel.classList.add('hidden');
+                  };
+                  img.onerror = () => {
+                    img.classList.add('errored');
+                    const skel = document.getElementById(skeletonId);
+                    if (skel) skel.classList.add('hidden');
+                    const item = img.closest('.img-item');
+                    if (item) item.style.display = 'none';
+                  };
+                  img.src = img.dataset.src;
+                });
+                wireStripArrows(artId);
+                imgsEl.classList.add('animating');
+                requestAnimationFrame(() => requestAnimationFrame(() => imgsEl.classList.add('visible')));
+              }
             } else {
               fullEl.dataset.failed = '1';
               const srcLink = data.url ? ` <a href="${escHtml(data.url)}" target="_blank" rel="noopener" style="color:var(--accent)">↗ Open source</a>` : '';
