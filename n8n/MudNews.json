@@ -244,107 +244,6 @@
           "name": "Header Auth account"
         }
       }
-    },
-    {
-      "parameters": {
-        "language": "javaScript",
-        "jsCode": "const data = items[0].json;\nconst articles = data.articles;\nif (!articles || articles.length === 0) return [];\n\nconst BATCH_SIZE = 20;\n\nconst byUser = {};\nfor (const a of articles) {\n  if (!byUser[a.user_id]) {\n    byUser[a.user_id] = { user_id: a.user_id, scoring_prompt: a.scoring_prompt, articles: [] };\n  }\n  byUser[a.user_id].articles.push(a);\n}\n\nconst result = [];\nfor (const group of Object.values(byUser)) {\n  const batch = group.articles.slice(0, BATCH_SIZE);\n  // id_map[i] = real article_id for line number (i+1). The LLM never sees these.\n  const id_map = batch.map(a => a.article_id);\n  const article_list = batch.map((a, i) =>\n    `${i + 1}. ${a.title} | ${(a.description || '').slice(0, 150)}`\n  ).join('\\n');\n  result.push({\n    json: {\n      user_id: group.user_id,\n      scoring_prompt: group.scoring_prompt,\n      article_count: batch.length,\n      article_list,\n      id_map,\n    }\n  });\n}\nreturn result;"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        672,
-        336
-      ],
-      "id": "code-batch-prompt",
-      "name": "Batch Prompt Builder"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "You are a news scoring bot. Output ONLY a JSON array. No explanation, no markdown, no code fences.\n\nBelow is a numbered list of news articles. Score each one. In your output, use the SAME line number (\"n\") shown before each article. Do not add or skip numbers.\n\nOUTPUT \u2014 a flat JSON array, one object per article:\n[{\"n\": <line number>, \"score\": <1-100>, \"reason\": \"<max 20 words>\", \"category\": \"<from list>\", \"decay\": \"<fast|moderate|slow>\"}, ...]\n\nSCORING CRITERIA:\n{{ $json.scoring_prompt }}\n\nDECAY:\nfast = stale within 24h (breaking news, live events, market moves)\nmoderate = relevant 2-4 days (developing stories, short-term policy)\nslow = valid weeks+ (research, analysis, product launches, explainers)\n\nALLOWED CATEGORIES (copy exactly):\nWorld News, Politics & Policy, Business & Finance, Technology, AI & Automation, Science & Health, Consumer & Gadgets, Entertainment & Celebrity, Lifestyle & Wellness, Sport, Crime & Justice, Weird & Viral, Opinion & Analysis, Other\n\nARTICLES TO SCORE ({{ $json.article_count }} total \u2014 output exactly one object per line, n from 1 to {{ $json.article_count }}):\n{{ $json.article_list }}\n\nOutput the JSON array now:",
-        "batching": {
-          "batchSize": 1
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
-      "position": [
-        896,
-        336
-      ],
-      "id": "llm-chain-batch",
-      "name": "LLM Chain - Batch Scorer"
-    },
-    {
-      "parameters": {
-        "model": "qwen3:latest",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmOllama",
-      "typeVersion": 1,
-      "position": [
-        960,
-        560
-      ],
-      "id": "ollama-batch",
-      "name": "Ollama Model - Batch Scorer",
-      "credentials": {
-        "ollamaApi": {
-          "id": "jn4XtA8BqYiytg6W",
-          "name": "Ollama account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://mudnews-api:8002/n8n/import-scores-batch",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "raw_response",
-              "value": "={{ $json.raw_response }}"
-            },
-            {
-              "name": "user_id",
-              "value": "={{ $json.user_id }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        1280,
-        336
-      ],
-      "id": "import-scores-batch",
-      "name": "import-scores-batch",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "F7GEHBmi3I4fN1LB",
-          "name": "Header Auth account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "language": "javaScript",
-        "jsCode": "// Map LLM line numbers back to real article_ids using id_map from Batch Prompt Builder.\n// The LLM only ever returns small line numbers (n); real IDs are injected here.\nconst srcItems = $('Batch Prompt Builder').all();\nconst out = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const llmText = (items[i].json.text || '').toString();\n  const src = srcItems[i] ? srcItems[i].json : null;\n  if (!src) continue;\n\n  const idMap = src.id_map || [];\n  const userId = src.user_id;\n\n  const match = llmText.match(/\\[[\\s\\S]*\\]/);\n  if (!match) { continue; }\n\n  let parsed;\n  try { parsed = JSON.parse(match[0]); }\n  catch (e) { continue; }\n  if (!Array.isArray(parsed)) continue;\n\n  const mapped = [];\n  for (const row of parsed) {\n    const n = parseInt(row.n, 10);\n    if (!n || n < 1 || n > idMap.length) continue;  // drop hallucinated line numbers\n    const score = parseInt(row.score, 10);\n    if (isNaN(score)) continue;\n    mapped.push({\n      article_id: idMap[n - 1],\n      score: Math.max(1, Math.min(100, score)),\n      reason: (row.reason || '').toString().slice(0, 300),\n      category: row.category || 'Other',\n      decay: row.decay || 'moderate',\n    });\n  }\n\n  if (mapped.length === 0) continue;\n  out.push({ json: { user_id: userId, raw_response: JSON.stringify(mapped) } });\n}\n\nreturn out;"
-      },
-      "id": "batch-result-mapper-0001",
-      "name": "Batch Result Mapper",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1040,
-        336
-      ]
     }
   ],
   "pinData": {},
@@ -383,13 +282,6 @@
         [
           {
             "node": "If",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Batch Prompt Builder",
             "type": "main",
             "index": 0
           }
@@ -443,48 +335,6 @@
         [
           {
             "node": "import-score",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Batch Prompt Builder": {
-      "main": [
-        [
-          {
-            "node": "LLM Chain - Batch Scorer",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "LLM Chain - Batch Scorer": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Ollama Model - Batch Scorer",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ],
-      "main": [
-        [
-          {
-            "node": "Batch Result Mapper",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Batch Result Mapper": {
-      "main": [
-        [
-          {
-            "node": "import-scores-batch",
             "type": "main",
             "index": 0
           }
