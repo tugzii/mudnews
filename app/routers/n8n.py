@@ -12,6 +12,7 @@ Endpoints
   GET  /n8n/articles-needing-content   → scored articles without full_content yet
 """
 
+import asyncio
 import logging
 from itertools import groupby
 from operator import itemgetter
@@ -154,6 +155,10 @@ async def score_batch_endpoint(
         scoring_prompt = user_rows[0].get("scoring_prompt") or ""
 
         for batch in _chunked(user_rows, batch_size):
+            # Stay under Gemini free-tier RPM (~10-15/min). Skip delay on first
+            # call; 4 s between subsequent calls keeps us under 15 RPM easily.
+            if total_batches > 0:
+                await asyncio.sleep(4)
             total_batches += 1
             articles = [
                 {"article_id": r["article_id"], "title": r["title"],
