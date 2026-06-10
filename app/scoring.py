@@ -136,7 +136,4 @@ def parse_ai_scores_batch(raw: str) -> list[dict]:
             "decay":      decay,
         })
 
-    if not results:
-        raise ValueError("LLM batch response contained no valid score items")
-
-    return results
+    return results  # empty list is valid — nothing to score this run

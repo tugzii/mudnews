@@ -117,6 +117,10 @@ async def import_scores_batch(
         logger.error("Batch score parse failed: %s | raw tail: %.300s", exc, body.raw_response[-300:])
         raise HTTPException(status_code=422, detail=str(exc))
 
+    if not parsed_items:
+        logger.warning("import-scores-batch: model returned empty array, nothing to upsert")
+        return JSONResponse({"inserted": 0, "skipped": 0, "total": 0, "status": "empty"})
+
     inserted = 0
     skipped  = 0
     conn = get_conn()
