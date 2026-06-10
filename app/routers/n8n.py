@@ -112,7 +112,7 @@ async def import_score(
 # scoring_prompt. Borrowing users (borrows_scores_from IS NOT NULL) are excluded
 # by get_unscored_articles, so they cost nothing — they read the lender's scores.
 class ScoreBatchRequest(BaseModel):
-    batch_size:    int = 50    # articles per Gemini call (50 ≈ 3k output tokens, safe)
+    batch_size:    int = 100   # articles per Gemini call (100 ≈ 6k output tokens, safe)
     max_articles:  int = 300   # safety cap on one invocation (Pi RAM + run time)
 
 
