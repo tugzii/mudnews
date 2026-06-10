@@ -2349,6 +2349,13 @@ function toggleExpand(cardId, artId) {
               articleContentStore[artId] = raw;
               // Render images now if they arrived with this response
               const freshImages = imageStore[artId] || [];
+              // Update card-header thumbnail if images just arrived
+              if (freshImages.length > 0) {
+                const thumbEl = document.querySelector(`#${cardId} .card-thumb`);
+                if (thumbEl && !thumbEl.querySelector('img')) {
+                  thumbEl.innerHTML = `<img src="${escHtml(freshImages[0].url)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+                }
+              }
               if (freshImages.length > 0 && imgsEl && !imgsEl.dataset.loaded) {
                 imgsEl.dataset.loaded = '1';
                 imgsEl.innerHTML = buildImageStrip(freshImages, artId);
