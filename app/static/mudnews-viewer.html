@@ -1601,7 +1601,7 @@
 // ── Theme ─────────────────────────────────────────────────────────────────────
 // Apply saved theme immediately (before DOMContentLoaded) to avoid flash.
 (function() {
-  const saved = localStorage.getItem('mudnews-theme') || 'dark';
+  const saved = localStorage.getItem('mudnews-theme') || 'light';
   if (saved === 'light') document.documentElement.dataset.theme = 'light';
 })();
 
@@ -1960,7 +1960,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (!getToken()) { window.location.replace('/mudnews/login'); return; }
 
   // Sync theme toggle icon with current theme
-  const savedTheme = localStorage.getItem('mudnews-theme') || 'dark';
+  const savedTheme = localStorage.getItem('mudnews-theme') || 'light';
   const themeBtn = document.getElementById('btn-theme-toggle');
   if (themeBtn) themeBtn.textContent = savedTheme === 'light' ? '🌙' : '☀';
 
