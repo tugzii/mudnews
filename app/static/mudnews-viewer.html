@@ -439,6 +439,24 @@
     align-items: flex-start;
     gap: 0.75rem;
   }
+  .card-thumb {
+    flex: none;
+    width: 64px;
+    height: 64px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .card-thumb-icon { color: var(--dim); opacity: 0.4; }
 
   .card-meta {
     display: flex;
@@ -2200,6 +2218,10 @@ function buildCard(a, index, isHistory, query = '') {
 
   const images    = imageStore[artId] || [];
   const hasImages = images.length > 0;
+  const thumbUrl  = hasImages ? images[0].url : null;
+  const thumbHtml = thumbUrl
+    ? `<div class="card-thumb"><img src="${escHtml(thumbUrl)}" alt="" loading="lazy" onerror="this.style.display='none'"></div>`
+    : `<div class="card-thumb card-thumb-empty"><span class="card-thumb-icon"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span></div>`;
   const imgHint   = hasImages
     ? `<span style="color:var(--dim);font-size:0.65rem;letter-spacing:0.04em;margin-left:0.25rem">· ${images.length} photo${images.length !== 1 ? 's' : ''}</span>`
     : '';
@@ -2226,6 +2248,7 @@ function buildCard(a, index, isHistory, query = '') {
   return `
   <div class="article-card ${isHistory ? 'history-card' : ''}" id="${cardId}" style="animation-delay:${index * 0.04}s" data-article-id="${artId}">
     <div class="card-header" onclick="toggleExpand('${cardId}',${artId})">
+      ${thumbHtml}
       <div style="flex:1;min-width:0;">
         <div class="card-meta">
           <span class="score-badge ${scoreClass}">Score ${Math.round(score)}</span>
