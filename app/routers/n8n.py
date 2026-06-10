@@ -123,29 +123,37 @@ async def import_scores_batch(
 
     inserted = 0
     skipped  = 0
+    errors   = 0
     conn = get_conn()
     try:
         for p in parsed_items:
-            result = insert_article_score(
-                conn,
-                article_id = p["article_id"],
-                user_id    = p["user_id"],
-                score      = p["score"],
-                reason     = p["reason"],
-                category   = p["category"],
-                decay      = p["decay"],
-            )
-            if result["inserted"]:
-                inserted += 1
-            else:
-                skipped += 1
+            try:
+                result = insert_article_score(
+                    conn,
+                    article_id = p["article_id"],
+                    user_id    = p["user_id"],
+                    score      = p["score"],
+                    reason     = p["reason"],
+                    category   = p["category"],
+                    decay      = p["decay"],
+                )
+                if result["inserted"]:
+                    inserted += 1
+                else:
+                    skipped += 1
+            except Exception as item_exc:
+                logger.warning("import-scores-batch: skipping item article_id=%s user_id=%s — %s",
+                               p.get("article_id"), p.get("user_id"), item_exc)
+                conn.rollback()
+                errors += 1
     finally:
         conn.close()
 
-    logger.info("import-scores-batch: inserted=%d skipped=%d total=%d", inserted, skipped, len(parsed_items))
+    logger.info("import-scores-batch: inserted=%d skipped=%d errors=%d total=%d", inserted, skipped, errors, len(parsed_items))
     return JSONResponse({
         "inserted": inserted,
         "skipped":  skipped,
+        "errors":   errors,
         "total":    len(parsed_items),
         "status":   "ok",
     })

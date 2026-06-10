@@ -244,6 +244,89 @@
           "name": "Header Auth account"
         }
       }
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const data = items[0].json;\nconst articles = data.articles;\nif (!articles || articles.length === 0) return [];\n\nconst BATCH_SIZE = 20;\n\nconst byUser = {};\nfor (const a of articles) {\n  if (!byUser[a.user_id]) {\n    byUser[a.user_id] = { user_id: a.user_id, scoring_prompt: a.scoring_prompt, articles: [] };\n  }\n  byUser[a.user_id].articles.push(a);\n}\n\nconst result = [];\nfor (const group of Object.values(byUser)) {\n  const batch = group.articles.slice(0, BATCH_SIZE);\n  const article_list = batch.map(a =>\n    `AID=${a.article_id} | ${a.title} | ${(a.description || '').slice(0, 150)}`\n  ).join('\\n');\n  result.push({\n    json: {\n      user_id: group.user_id,\n      scoring_prompt: group.scoring_prompt,\n      article_count: batch.length,\n      article_list,\n    }\n  });\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        336
+      ],
+      "id": "code-batch-prompt",
+      "name": "Batch Prompt Builder"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a news scoring bot. Output ONLY a JSON array. No explanation, no markdown, no code fences.\n\nEach line below starts with AID=<number> \u2014 that number is the article_id you MUST use in your output.\nDo not invent article_ids. Copy the AID= value exactly.\nuser_id for all items: {{ $json.user_id }} \u2014 copy this exactly too.\n\nOUTPUT \u2014 a flat JSON array, one object per article:\n[{\"article_id\": <AID value as integer>, \"user_id\": {{ $json.user_id }}, \"score\": <1-100>, \"reason\": \"<max 20 words>\", \"category\": \"<from list>\", \"decay\": \"<fast|moderate|slow>\"}, ...]\n\nSCORING CRITERIA:\n{{ $json.scoring_prompt }}\n\nDECAY:\nfast = stale within 24h (breaking news, live events, market moves)\nmoderate = relevant 2-4 days (developing stories, short-term policy)\nslow = valid weeks+ (research, analysis, product launches, explainers)\n\nALLOWED CATEGORIES (copy exactly):\nWorld News, Politics & Policy, Business & Finance, Technology, AI & Automation, Science & Health, Consumer & Gadgets, Entertainment & Celebrity, Lifestyle & Wellness, Sport, Crime & Justice, Weird & Viral, Opinion & Analysis, Other\n\nARTICLES TO SCORE ({{ $json.article_count }} total \u2014 output one object per article, use the AID= number as article_id):\n{{ $json.article_list }}\n\nOutput the JSON array now:",
+        "batching": {
+          "batchSize": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        896,
+        336
+      ],
+      "id": "llm-chain-batch",
+      "name": "LLM Chain - Batch Scorer"
+    },
+    {
+      "parameters": {
+        "model": "qwen3:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        960,
+        560
+      ],
+      "id": "ollama-batch",
+      "name": "Ollama Model - Batch Scorer",
+      "credentials": {
+        "ollamaApi": {
+          "id": "jn4XtA8BqYiytg6W",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mudnews-api:8002/n8n/import-scores-batch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "raw_response",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        336
+      ],
+      "id": "import-scores-batch",
+      "name": "import-scores-batch",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F7GEHBmi3I4fN1LB",
+          "name": "Header Auth account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -282,6 +365,13 @@
         [
           {
             "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Batch Prompt Builder",
             "type": "main",
             "index": 0
           }
@@ -335,6 +425,37 @@
         [
           {
             "node": "import-score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Prompt Builder": {
+      "main": [
+        [
+          {
+            "node": "LLM Chain - Batch Scorer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Chain - Batch Scorer": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Ollama Model - Batch Scorer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "import-scores-batch",
             "type": "main",
             "index": 0
           }
