@@ -21,7 +21,7 @@ from app.db import (
     get_conn, get_unscored_articles, insert_article_score,
     update_article_content,
 )
-from app.scoring import parse_ai_score_payload, parse_ai_scores_batch
+from app.scoring import parse_ai_score_payload
 
 logger = logging.getLogger(__name__)
 
@@ -91,73 +91,6 @@ async def import_score(
         "inserted":      result["inserted"],
         "decay_updated": result["decay_updated"],
         "status":        "ok" if result["inserted"] else "skipped",
-    })
-
-
-
-# ---------------------------------------------------------------------------
-# POST /n8n/import-scores-batch
-# ---------------------------------------------------------------------------
-class ImportScoresBatchRequest(BaseModel):
-    raw_response: str
-    user_id: int  # supplied by n8n Code node; LLM does not need to provide it
-
-
-@router.post("/import-scores-batch")
-async def import_scores_batch(
-    body: ImportScoresBatchRequest,
-    user: str = Depends(require_auth),
-):
-    """
-    Parse a JSON array of scores from a batch LLM response and upsert all of them.
-    user_id is supplied by the caller (n8n Code node), not by the LLM.
-    Returns a summary of inserted/skipped counts.
-    """
-    try:
-        parsed_items = parse_ai_scores_batch(body.raw_response)
-    except ValueError as exc:
-        logger.error("Batch score parse failed: %s | raw tail: %.300s", exc, body.raw_response[-300:])
-        raise HTTPException(status_code=422, detail=str(exc))
-
-    if not parsed_items:
-        logger.warning("import-scores-batch: model returned empty array, nothing to upsert")
-        return JSONResponse({"inserted": 0, "skipped": 0, "total": 0, "status": "empty"})
-
-    inserted = 0
-    skipped  = 0
-    errors   = 0
-    conn = get_conn()
-    try:
-        for p in parsed_items:
-            try:
-                result = insert_article_score(
-                    conn,
-                    article_id = p["article_id"],
-                    user_id    = body.user_id,
-                    score      = p["score"],
-                    reason     = p["reason"],
-                    category   = p["category"],
-                    decay      = p["decay"],
-                )
-                if result["inserted"]:
-                    inserted += 1
-                else:
-                    skipped += 1
-            except Exception as item_exc:
-                logger.warning("import-scores-batch: skipping item article_id=%s user_id=%d — %s",
-                               p.get("article_id"), body.user_id, item_exc)
-                conn.rollback()
-                errors += 1
-    finally:
-        conn.close()
-
-    logger.info("import-scores-batch: inserted=%d skipped=%d errors=%d total=%d", inserted, skipped, errors, len(parsed_items))
-    return JSONResponse({
-        "inserted": inserted,
-        "skipped":  skipped,
-        "errors":   errors,
-        "total":    len(parsed_items),
-        "status":   "ok",
     })
 
 
