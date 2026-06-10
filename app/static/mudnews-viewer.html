@@ -8,9 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:         #0a0a0c;
-    --surface:    #111116;
-    --surface2:   #18181f;
+    --bg:         #0e0e12;
+    --surface:    #16161c;
+    --surface2:   #1c1c24;
     --border:     #252530;
     --border2:    #32323f;
     --text:       #e2e2e8;
@@ -73,6 +73,7 @@
   /* Card body text uses hardcoded dark-mode grays — fix for light */
   [data-theme="light"] .card-summary,
   [data-theme="light"] .card-full-content { color: #3d302a; }
+  [data-theme="light"] .card-desc { color: #5c4a40; }
   [data-theme="light"] .card-full-content {
     border-top: 1px solid var(--border);
   }
@@ -113,7 +114,7 @@
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html { font-size: 15px; }
+  html { font-size: 17px; }
 
   body {
     background: var(--bg);
@@ -546,8 +547,8 @@
 
   /* ── Card title: single definition, used by both queue and history ── */
   .card-desc {
-    font-size: 0.78rem;
-    color: var(--dim);
+    font-size: 0.82rem;
+    color: #8c8ca8;
     font-style: italic;
     margin: 0.4rem 0 -0.25rem;
     line-height: 1.35;
@@ -581,7 +582,7 @@
     font-family: var(--body);
     font-size: 0.88rem;
     line-height: 1.75;
-    color: #b2b2c2;
+    color: #c8c8d8;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -598,7 +599,7 @@
     font-family: var(--body);
     font-size: 0.88rem;
     line-height: 1.75;
-    color: #b2b2c2;
+    color: #c8c8d8;
     padding: 0.5rem 0 0.25rem;
     border-top: 1px solid rgba(255,255,255,0.06);
     margin-top: 0.5rem;
