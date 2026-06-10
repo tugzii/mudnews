@@ -93,3 +93,50 @@ def parse_voice_summary(raw: str) -> tuple[int, str]:
         raise ValueError(f"Empty voice summary for article_id={article_id}")
 
     return article_id, voice_summary
+
+
+def parse_ai_scores_batch(raw: str) -> list[dict]:
+    """
+    Extract and validate a batch of score payloads from a raw LLM response.
+    Expects a JSON array. Skips invalid items with a warning.
+    Raises ValueError if no valid array is found.
+    """
+    match = re.search(r'\[.*\]', raw, re.DOTALL)
+    if not match:
+        raise ValueError("No JSON array found in LLM batch response")
+
+    try:
+        items = json.loads(match.group())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON array in LLM batch response: {exc}") from exc
+
+    if not isinstance(items, list):
+        raise ValueError("LLM batch response is not a JSON array")
+
+    results = []
+    for item in items:
+        try:
+            article_id = int(item["article_id"])
+            user_id    = int(item["user_id"])
+            score      = int(item["score"])
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.warning("Skipping batch item — bad fields: %s | %s", exc, item)
+            continue
+
+        decay = item.get("decay", "moderate")
+        if decay not in VALID_DECAY_VALUES:
+            decay = "moderate"
+
+        results.append({
+            "article_id": article_id,
+            "user_id":    user_id,
+            "score":      score,
+            "reason":     item.get("reason", ""),
+            "category":   item.get("category", "Other"),
+            "decay":      decay,
+        })
+
+    if not results:
+        raise ValueError("LLM batch response contained no valid score items")
+
+    return results
