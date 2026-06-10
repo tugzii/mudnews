@@ -39,7 +39,7 @@ def get_dict_conn():
     )
 
 
-def get_unscored_articles(conn, limit: int = 200) -> list[dict]:
+def get_unscored_articles(conn, limit: int = 300) -> list[dict]:
     """
     Return articles that have not yet been scored for every non-borrowing user.
 
