@@ -1,7 +1,7 @@
 {
     "interactionModel": {
         "languageModel": {
-            "invocationName": "my stories",
+            "invocationName": "mud news",
             "intents": [
                 {
                     "name": "AMAZON.CancelIntent",
@@ -32,6 +32,19 @@
                     "samples": []
                 },
                 {
+                    "name": "TopStoriesIntent",
+                    "slots": [],
+                    "samples": [
+                        "top stories",
+                        "best stories",
+                        "switch to top stories",
+                        "give me top stories",
+                        "switch to best stories",
+                        "top news",
+                        "hear top stories"
+                    ]
+                },
+                {
                     "name": "FeedIntent",
                     "slots": [
                         {
@@ -40,11 +53,12 @@
                         }
                     ],
                     "samples": [
+                        "{query}",
                         "for {query}",
                         "give me {query}",
                         "I want {query}",
-                        "top stories",
-                        "latest news"
+                        "latest news",
+                        "latest"
                     ]
                 }
             ],
@@ -61,26 +75,14 @@
                             "name": "query",
                             "type": "AMAZON.SearchQuery",
                             "confirmationRequired": false,
-                            "elicitationRequired": true,
-                            "prompts": {
-                                "elicitation": "Elicit.Slot.FeedIntent.Query"
-                            }
+                            "elicitationRequired": false,
+                            "prompts": {}
                         }
                     ]
                 }
             ],
-            "delegationStrategy": "ALWAYS"
+            "delegationStrategy": "SKILL"
         },
-        "prompts": [
-            {
-                "id": "Elicit.Slot.FeedIntent.Query",
-                "variations": [
-                    {
-                        "type": "PlainText",
-                        "value": "Who's listening?"
-                    }
-                ]
-            }
-        ]
+        "prompts": []
     }
 }

@@ -21,6 +21,7 @@ Resources:
           ALEXA_API_KEY: ""
           WEBCALL_TIMEOUT: "15"
           EXPLICIT_CONTROLS: "false"
+          DEFAULT_USER_ID: "1"
           LOG_LEVEL: "INFO"
       Events:
         AlexaSkillEvent:
