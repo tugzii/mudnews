@@ -6,12 +6,16 @@ reads the full text on demand with pagination.
 
 Endpoints
   GET  /n8n/unscored-articles          → articles needing AI scoring
-  POST /n8n/import-score               → save AI score for an article
+  POST /n8n/import-score               → save AI score for an article (legacy per-article)
+  POST /n8n/score-batch                → fetch + score all unscored articles via Gemini (batched)
   POST /n8n/fetch-article-content      → fetch + store full text for one article
   GET  /n8n/articles-needing-content   → scored articles without full_content yet
 """
 
 import logging
+from itertools import groupby
+from operator import itemgetter
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -22,6 +26,7 @@ from app.db import (
     update_article_content,
 )
 from app.scoring import parse_ai_score_payload
+from app import gemini
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +96,121 @@ async def import_score(
         "inserted":      result["inserted"],
         "decay_updated": result["decay_updated"],
         "status":        "ok" if result["inserted"] else "skipped",
+    })
+
+
+# ---------------------------------------------------------------------------
+# POST /n8n/score-batch
+# ---------------------------------------------------------------------------
+# Self-contained batch scorer. n8n calls this ONE endpoint on a schedule; the
+# backend does everything: fetch unscored articles for every non-borrowing
+# user, chunk them into batches, score each batch with Gemini 2.5 Flash, and
+# upsert the results. There is no LLM node in n8n and no per-article round-trip.
+#
+# Articles are grouped per user so each reader is scored with their own
+# scoring_prompt. Borrowing users (borrows_scores_from IS NOT NULL) are excluded
+# by get_unscored_articles, so they cost nothing — they read the lender's scores.
+class ScoreBatchRequest(BaseModel):
+    batch_size:    int = 50    # articles per Gemini call (50 ≈ 3k output tokens, safe)
+    max_articles:  int = 300   # safety cap on one invocation (Pi RAM + run time)
+
+
+def _chunked(seq: list, size: int):
+    for i in range(0, len(seq), size):
+        yield seq[i:i + size]
+
+
+@router.post("/score-batch")
+async def score_batch_endpoint(
+    body: ScoreBatchRequest = ScoreBatchRequest(),
+    user: str = Depends(require_auth),
+):
+    batch_size = max(1, min(body.batch_size, 100))
+
+    conn = get_conn()
+    try:
+        rows = get_unscored_articles(conn, limit=body.max_articles)
+    finally:
+        conn.close()
+
+    if not rows:
+        return JSONResponse({
+            "status": "empty", "fetched": 0, "scored": 0,
+            "skipped": 0, "errors": 0, "batches": 0, "users": 0,
+        })
+
+    # Group rows by user so each user is scored with their own prompt.
+    rows.sort(key=itemgetter("user_id"))
+    user_groups = {
+        uid: list(grp) for uid, grp in groupby(rows, key=itemgetter("user_id"))
+    }
+
+    total_scored = 0
+    total_skipped = 0
+    total_errors  = 0
+    total_batches = 0
+
+    for uid, user_rows in user_groups.items():
+        scoring_prompt = user_rows[0].get("scoring_prompt") or ""
+
+        for batch in _chunked(user_rows, batch_size):
+            total_batches += 1
+            articles = [
+                {"article_id": r["article_id"], "title": r["title"],
+                 "description": r["description"]}
+                for r in batch
+            ]
+            try:
+                scored = await gemini.score_batch(articles, scoring_prompt)
+            except RuntimeError as exc:
+                # Misconfiguration (no API key) — fail the whole request loudly.
+                logger.error("score-batch aborted: %s", exc)
+                raise HTTPException(status_code=500, detail=str(exc))
+            except ValueError as exc:
+                # One bad Gemini response — skip this batch, keep going.
+                logger.error("score-batch: Gemini batch failed for user %d — %s", uid, exc)
+                total_errors += len(articles)
+                continue
+
+            conn = get_conn()
+            try:
+                for s in scored:
+                    try:
+                        result = insert_article_score(
+                            conn,
+                            article_id = s["article_id"],
+                            user_id    = uid,
+                            score      = s["score"],
+                            reason     = s["reason"],
+                            category   = s["category"],
+                            decay      = s["decay"],
+                        )
+                        if result["inserted"]:
+                            total_scored += 1
+                        else:
+                            total_skipped += 1
+                    except Exception as item_exc:
+                        logger.warning(
+                            "score-batch: insert failed article_id=%s user_id=%d — %s",
+                            s.get("article_id"), uid, item_exc,
+                        )
+                        conn.rollback()
+                        total_errors += 1
+            finally:
+                conn.close()
+
+    logger.info(
+        "score-batch: fetched=%d scored=%d skipped=%d errors=%d batches=%d users=%d",
+        len(rows), total_scored, total_skipped, total_errors, total_batches, len(user_groups),
+    )
+    return JSONResponse({
+        "status":   "ok",
+        "fetched":  len(rows),
+        "scored":   total_scored,
+        "skipped":  total_skipped,
+        "errors":   total_errors,
+        "batches":  total_batches,
+        "users":    len(user_groups),
     })
 
 
