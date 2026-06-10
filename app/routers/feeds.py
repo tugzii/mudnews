@@ -32,6 +32,7 @@ router = APIRouter(prefix="/n8n", tags=["n8n"])
 
 class IngestFeedRequest(BaseModel):
     feed_url:       str
+    source_label:   str = ""  # e.g. "AU", "UK" — tags articles for source filtering
     cleanup_months: int = 3   # how far back to retain articles
 
 
@@ -89,7 +90,7 @@ async def ingest_feed(
     # ── Upsert + cleanup ─────────────────────────────────────────────────────
     conn = get_conn()
     try:
-        counts  = upsert_articles(conn, rows)
+        counts  = upsert_articles(conn, rows, source_feed=body.source_label)
         deleted = cleanup_old_articles(conn, months=body.cleanup_months)
         conn.commit()
     finally:

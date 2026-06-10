@@ -11,8 +11,9 @@ router = APIRouter()
 
 @router.get("/mudnews/get-queue")
 async def get_queue(
-    mode: str = Query(...),
-    user: str = Depends(require_session),
+    mode:   str = Query(...),
+    source: str = Query(default=""),
+    user:   str = Depends(require_session),
 ):
     if mode not in ("latest", "top"):
         raise HTTPException(status_code=400, detail=f"Unknown mode: {mode}")
@@ -27,7 +28,7 @@ async def get_queue(
     user_id, score_user_id = row
     cur.close()
 
-    articles_raw = select_article_pool(conn, score_user_id, mode, scoring)
+    articles_raw = select_article_pool(conn, score_user_id, mode, scoring, source_feed=source or None)
     conn.close()
 
     articles = []
@@ -62,9 +63,10 @@ async def get_queue(
 
 @router.get("/mudnews/explore-articles")
 async def explore_articles(
-    q:     str = Query(default=""),
-    limit: int = Query(default=100, ge=1, le=200),
-    user:  str = Depends(require_session),
+    q:      str = Query(default=""),
+    limit:  int = Query(default=100, ge=1, le=200),
+    source: str = Query(default=""),
+    user:   str = Depends(require_session),
 ):
     conn = get_conn()
     cur  = conn.cursor()
@@ -76,33 +78,39 @@ async def explore_articles(
     cur.close()
 
     cur = conn.cursor()
+    source_clause  = "AND a.source_feed = %s" if source and source.strip() else ""
+    source_params  = (source.strip(),) if source and source.strip() else ()
+
     if q.strip():
         cur.execute(
-            """
+            f"""
             SELECT a.id, a.title, a.description, a.url, a.published_at, a.created_at,
                    a.decay, a.images, aus.ai_score, c.name AS category
             FROM articles a
             LEFT JOIN article_user_scores aus ON aus.article_id = a.id AND aus.user_id = %s
             LEFT JOIN categories c ON c.id = aus.category_id
             WHERE a.search_vector @@ websearch_to_tsquery('english', %s)
+              {source_clause}
             ORDER BY ts_rank_cd(a.search_vector, websearch_to_tsquery('english', %s)) DESC,
                      a.published_at DESC
             LIMIT %s
             """,
-            (user_id, q, q, limit),
+            (user_id, q) + source_params + (q, limit),
         )
     else:
         cur.execute(
-            """
+            f"""
             SELECT a.id, a.title, a.description, a.url, a.published_at, a.created_at,
                    a.decay, a.images, aus.ai_score, c.name AS category
             FROM articles a
             LEFT JOIN article_user_scores aus ON aus.article_id = a.id AND aus.user_id = %s
             LEFT JOIN categories c ON c.id = aus.category_id
+            WHERE 1=1
+              {source_clause}
             ORDER BY a.published_at DESC
             LIMIT %s
             """,
-            (user_id, limit),
+            (user_id,) + source_params + (limit,),
         )
 
     articles = []

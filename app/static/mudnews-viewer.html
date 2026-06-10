@@ -342,6 +342,28 @@
   .mode-btn.active { background: var(--accent); color: #fff; }
   .mode-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
 
+  .source-toggle {
+    display: flex;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-left: 0.5rem;
+  }
+  .source-btn {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.7rem;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .source-btn.active { background: var(--blue); color: #fff; }
+  .source-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
   .toolbar-right {
     margin-left: auto;
     display: flex;
@@ -1530,6 +1552,11 @@
           <button class="mode-btn active" onclick="setMode('latest')" id="btn-mode-latest">Latest</button>
           <button class="mode-btn"        onclick="setMode('explore')" id="btn-mode-explore">Explore</button>
         </div>
+        <div class="source-toggle" id="source-toggle">
+          <button class="source-btn active" onclick="setSource('all')" id="btn-src-all">All</button>
+          <button class="source-btn"        onclick="setSource('AU')"  id="btn-src-au">AU</button>
+          <button class="source-btn"        onclick="setSource('UK')"  id="btn-src-uk">UK</button>
+        </div>
         <input class="history-search-input" id="queue-search-input" type="text"
                placeholder="Filter queue…" autocomplete="off" spellcheck="false"
                oninput="onQueueSearchInput()">
@@ -1648,6 +1675,7 @@ function authFetch(url, opts) {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentMode     = 'latest';
+let currentSource   = localStorage.getItem('mudnews-source') || 'all';
 let currentTab      = 'queue';
 let exploreResults  = [];
 let exploreQuery    = '';
@@ -1981,6 +2009,13 @@ window.addEventListener('DOMContentLoaded', () => {
   const themeBtn = document.getElementById('btn-theme-toggle');
   if (themeBtn) themeBtn.textContent = savedTheme === 'light' ? '🌙' : '☀';
 
+  // Restore source toggle state
+  const savedSource = localStorage.getItem('mudnews-source') || 'all';
+  currentSource = savedSource;
+  document.getElementById('btn-src-all').classList.toggle('active', savedSource === 'all');
+  document.getElementById('btn-src-au').classList.toggle('active', savedSource === 'AU');
+  document.getElementById('btn-src-uk').classList.toggle('active', savedSource === 'UK');
+
   loadCurrentUser();
   loadQueue();
   loadHistory();
@@ -2052,6 +2087,22 @@ function setMode(mode) {
   }
 }
 
+// ── Source ─────────────────────────────────────────────────────────────────────────────
+function setSource(src) {
+  if (src === currentSource) return;
+  currentSource = src;
+  localStorage.setItem('mudnews-source', src);
+  document.getElementById('btn-src-all').classList.toggle('active', src === 'all');
+  document.getElementById('btn-src-au').classList.toggle('active', src === 'AU');
+  document.getElementById('btn-src-uk').classList.toggle('active', src === 'UK');
+  queueArticles = [];
+  if (currentMode === 'explore') {
+    loadExploreInQueue(document.getElementById('queue-search-input').value.trim());
+  } else {
+    loadQueue();
+  }
+}
+
 // ── Queue ─────────────────────────────────────────────────────────────────────
 async function loadQueue() {
   if (loadingQueue) return;
@@ -2062,7 +2113,8 @@ async function loadQueue() {
   queueArticles = [];
   renderQueue();
   try {
-    const r = await authFetch(`${BASE}/get-queue?mode=${currentMode}`);
+    const srcParam = currentSource && currentSource !== 'all' ? `&source=${encodeURIComponent(currentSource)}` : '';
+    const r = await authFetch(`${BASE}/get-queue?mode=${currentMode}${srcParam}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     queueArticles = Array.isArray(data) ? data : (data.articles || []);
@@ -2123,9 +2175,10 @@ async function loadExploreInQueue(q = '') {
   setStatus(q ? 'Searching…' : 'Loading…');
   list.innerHTML = '';
   try {
+    const srcParam = currentSource && currentSource !== 'all' ? `&source=${encodeURIComponent(currentSource)}` : '';
     const url = q.length >= 2
-      ? `${BASE}/explore-articles?q=${encodeURIComponent(q)}&limit=100`
-      : `${BASE}/explore-articles?limit=100`;
+      ? `${BASE}/explore-articles?q=${encodeURIComponent(q)}&limit=100${srcParam}`
+      : `${BASE}/explore-articles?limit=100${srcParam}`;
     const r = await authFetch(url);
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();

@@ -132,29 +132,35 @@ def insert_article_score(
     return {"inserted": inserted, "decay_updated": decay_updated}
 
 
-def upsert_articles(conn, rows: list[tuple]) -> dict:
+def upsert_articles(conn, rows: list[tuple], source_feed: str = "") -> dict:
     """
     Upsert a list of (title, description, url, published_at) tuples into articles.
 
     ON CONFLICT (url) updates title, description, and published_at.
+    source_feed tags all rows with a feed label (e.g. "AU", "UK"); blank = untagged.
     Returns {"inserted": int, "updated": int}.
     """
     if not rows:
         return {"inserted": 0, "updated": 0}
 
+    # Attach source_feed to each row as 5th element
+    sf = source_feed.strip() or None
+    tagged_rows = [(t, d, u, p, sf) for t, d, u, p in rows]
+
     cur = conn.cursor()
     results = execute_values(
         cur,
         """
-        INSERT INTO articles (title, description, url, published_at)
+        INSERT INTO articles (title, description, url, published_at, source_feed)
         VALUES %s
         ON CONFLICT (url) DO UPDATE SET
             title        = EXCLUDED.title,
             description  = EXCLUDED.description,
-            published_at = EXCLUDED.published_at
+            published_at = EXCLUDED.published_at,
+            source_feed  = COALESCE(articles.source_feed, EXCLUDED.source_feed)
         RETURNING (xmax = 0) AS inserted
         """,
-        rows,
+        tagged_rows,
         fetch=True,
     )
     inserted = sum(1 for r in results if r[0])
@@ -197,7 +203,8 @@ def fix_null_decay(conn) -> int:
 
 
 def select_article_pool(conn, user_id: int, mode: str, scoring,
-                         extra_exclude: list | None = None) -> list[dict]:
+                         extra_exclude: list | None = None,
+                         source_feed: str | None = None) -> list[dict]:
     """
     Shared article-selection logic used by all three callers
     (get_articles_to_summarise, get_queue, fetch_story).
@@ -241,6 +248,14 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
         exclude_clause = ""
         exclude_params = ()
 
+    # Build optional source-feed filter
+    if source_feed and source_feed.strip():
+        source_clause = "AND a.source_feed = %s"
+        source_params = (source_feed.strip(),)
+    else:
+        source_clause = ""
+        source_params = ()
+
     cur = conn.cursor()
     cur.execute(
         f"""
@@ -261,12 +276,13 @@ def select_article_pool(conn, user_id: int, mode: str, scoring,
           )
           {time_clause}
           {exclude_clause}
+          {source_clause}
         ORDER BY
             CASE WHEN aus.rescued_at IS NOT NULL THEN 0 ELSE 1 END,
             aus.ai_score DESC
         LIMIT %s
         """,
-        (user_id, score_min, user_id) + time_params + exclude_params + (pool_size * 3,),
+        (user_id, score_min, user_id) + time_params + exclude_params + source_params + (pool_size * 3,),
     )
 
     candidates = []
