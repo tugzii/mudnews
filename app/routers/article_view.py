@@ -76,10 +76,11 @@ async def get_article_data(article_id: int, user: str = Depends(require_session)
     else:
         images = []
 
-    # On-demand content fetch: if the article was scored but not yet scraped,
-    # fetch it now so the inline expand works without a separate n8n run.
-    if not full_content and url:
-        full_content, images = _scrape(url, None, images or None)
+    # On-demand content fetch: if missing content OR missing images, re-scrape.
+    # Pass existing_content so the scraper skips re-extracting text when it
+    # already exists — the HTML fetch is still needed for image extraction.
+    if url and (not full_content or not images):
+        full_content, images = _scrape(url, full_content or None, images or None)
         conn2 = get_conn()
         try:
             update_article_content(conn2, aid, full_content, images)
