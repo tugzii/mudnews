@@ -33,6 +33,83 @@
     --sans:       'Syne', sans-serif;
   }
 
+  /* ── Light mode — Claude Web aesthetic (warm cream / amber) ── */
+  [data-theme="light"] {
+    --bg:         #faf7f4;
+    --surface:    #f2ece3;
+    --surface2:   #e8e0d4;
+    --border:     #ddd5c8;
+    --border2:    #c9bfb2;
+    --text:       #1c1410;
+    --muted:      #6b5d52;
+    --dim:        #9e8e82;
+    --accent:     #c2610d;
+    --accent2:    #8b440a;
+    --green:      #15803d;
+    --green-dim:  #dcfce7;
+    --yellow:     #92400e;
+    --yellow-dim: #fef3c7;
+    --red:        #b91c1c;
+    --red-dim:    #fee2e2;
+    --blue:       #1d4ed8;
+    --blue-dim:   #dbeafe;
+    --fast:       #b91c1c;
+    --moderate:   #92400e;
+    --slow:       #15803d;
+  }
+
+  /* No scanlines in light mode */
+  [data-theme="light"] body::before { display: none; }
+
+  /* Override hardcoded dark header/nav backgrounds */
+  [data-theme="light"] header {
+    background: rgba(250,247,244,0.95);
+  }
+  [data-theme="light"] .sticky-nav {
+    background: rgba(242,236,227,0.97);
+  }
+
+  /* Card body text uses hardcoded dark-mode grays — fix for light */
+  [data-theme="light"] .card-summary,
+  [data-theme="light"] .card-full-content { color: #3d302a; }
+  [data-theme="light"] .card-full-content {
+    border-top: 1px solid var(--border);
+  }
+
+  /* Card source title — amber on cream */
+  [data-theme="light"] .card-title {
+    color: #7a3c08;
+    background: rgba(194,97,13,0.07);
+    border-color: rgba(194,97,13,0.22);
+  }
+
+  /* Score badges — remap purple to amber for light mode */
+  [data-theme="light"] .score-high {
+    background: rgba(194,97,13,0.10);
+    color: var(--accent2);
+    border-color: rgba(194,97,13,0.22);
+  }
+  [data-theme="light"] .score-mid {
+    background: rgba(29,78,216,0.08);
+    color: var(--blue);
+    border-color: rgba(29,78,216,0.18);
+  }
+  [data-theme="light"] .score-low {
+    background: var(--surface2);
+    color: var(--muted);
+    border-color: var(--border2);
+  }
+
+  /* Search highlight in light mode */
+  [data-theme="light"] mark {
+    background: rgba(194,97,13,0.15);
+    color: var(--accent2);
+  }
+
+  /* Keep speed-read and lightbox dark regardless of theme */
+  [data-theme="light"] #sr-modal { background: rgba(0,0,0,0.96); }
+  [data-theme="light"] #lightbox  { background: rgba(0,0,0,0.92); }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   html { font-size: 15px; }
@@ -133,6 +210,21 @@
     background: var(--green);
     flex-shrink: 0;
   }
+
+  .btn-theme-toggle {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .btn-theme-toggle:hover { border-color: var(--accent); color: var(--accent2); }
 
   .btn-logout {
     font-family: var(--mono);
@@ -1391,6 +1483,7 @@
     <div class="user-chip" id="user-chip">
       <span id="user-chip-name"></span>
     </div>
+    <button class="btn-theme-toggle" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle light / dark mode">☀</button>
     <a href="#" class="btn-logout" onclick="event.preventDefault();logout();">⏻ Sign out</a>
   </div>
 </header>
@@ -1505,6 +1598,22 @@
 <div id="toast-container"></div>
 
 <script>
+// ── Theme ─────────────────────────────────────────────────────────────────────
+// Apply saved theme immediately (before DOMContentLoaded) to avoid flash.
+(function() {
+  const saved = localStorage.getItem('mudnews-theme') || 'dark';
+  if (saved === 'light') document.documentElement.dataset.theme = 'light';
+})();
+
+function toggleTheme() {
+  const isLight = document.documentElement.dataset.theme === 'light';
+  const next = isLight ? 'dark' : 'light';
+  document.documentElement.dataset.theme = next === 'dark' ? '' : next;
+  localStorage.setItem('mudnews-theme', next);
+  const btn = document.getElementById('btn-theme-toggle');
+  if (btn) btn.textContent = next === 'light' ? '🌙' : '☀';
+}
+
 // ── Config ────────────────────────────────────────────────────────────────────
 const BASE = '/mudnews';
 const TOKEN_KEY = 'mudnews_token';
@@ -1849,6 +1958,11 @@ let lightboxIndex  = 0;
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   if (!getToken()) { window.location.replace('/mudnews/login'); return; }
+
+  // Sync theme toggle icon with current theme
+  const savedTheme = localStorage.getItem('mudnews-theme') || 'dark';
+  const themeBtn = document.getElementById('btn-theme-toggle');
+  if (themeBtn) themeBtn.textContent = savedTheme === 'light' ? '🌙' : '☀';
 
   loadCurrentUser();
   loadQueue();
