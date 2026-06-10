@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from app.dependencies import require_auth
+from app.limiter import limiter
 from app.auth import require_session
 from app.db import get_conn
 
@@ -66,8 +67,10 @@ async def _mark_read_by_username(article_id: int, status: str, username: str):
 
 
 @router.post("/mark-read")
+@limiter.limit("30/minute")
 async def mark_read_alexa(
-    body: AlexaMarkReadRequest,
+    request: Request,
+    body:    AlexaMarkReadRequest,
     user: str = Depends(require_auth),
 ):
     return await _mark_read_by_user_id(body.article_id, body.status, body.user_id)

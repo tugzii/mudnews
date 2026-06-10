@@ -1,4 +1,5 @@
 import os
+import secrets
 from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 
@@ -10,6 +11,6 @@ def require_auth(
 ) -> str:
     """API key auth for Alexa and N8N callers."""
     expected = os.environ.get("ALEXA_API_KEY", "")
-    if expected and api_key == expected:
+    if expected and api_key and secrets.compare_digest(api_key, expected):
         return "alexa"
     raise HTTPException(status_code=401, detail="Not authenticated")

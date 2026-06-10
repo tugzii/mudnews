@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.dependencies import require_auth
 from app.db import get_conn, select_article_pool
+from app.limiter import limiter
 import app.scoring as scoring
 
 router = APIRouter()
 
 
 @router.get("/rss-stories")
+@limiter.limit("30/minute")
 async def fetch_story(
+    request:     Request,
     mode:        str = Query(...),
     user_id:     int = Query(...),
     exclude_ids: str = Query(default=""),

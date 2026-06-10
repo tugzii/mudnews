@@ -15,11 +15,12 @@ Response:
 """
 
 import re
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app.dependencies import require_auth
 from app.db import get_conn
+from app.limiter import limiter
 
 router = APIRouter()
 
@@ -60,7 +61,9 @@ def _sentence_chunk(text: str, offset: int, size: int) -> tuple[str, bool, int]:
 
 
 @router.get("/read-article")
+@limiter.limit("60/minute")
 async def read_article(
+    request:    Request,
     article_id: int = Query(...),
     offset:     int = Query(default=0, ge=0),
     user:       str = Depends(require_auth),
