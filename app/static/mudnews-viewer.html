@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MudNews</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:         #0a0a0c;
@@ -31,6 +31,7 @@
     --slow:       #3ecf8e;
     --mono:       'IBM Plex Mono', monospace;
     --sans:       'Syne', sans-serif;
+    --body:       'Lora', Georgia, serif;
   }
 
   /* ── Light mode — Claude Web aesthetic (warm cream / amber) ── */
@@ -117,7 +118,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: var(--mono);
+    font-family: var(--body);
     min-height: 100vh;
     line-height: 1.6;
     overflow-x: hidden;
@@ -577,8 +578,9 @@
   .card-body { padding: 0 1.25rem 0; }
 
   .card-summary {
-    font-size: 0.82rem;
-    line-height: 1.7;
+    font-family: var(--body);
+    font-size: 0.88rem;
+    line-height: 1.75;
     color: #b2b2c2;
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -593,8 +595,9 @@
 
   .card-full-content {
     display: none;
-    font-size: 0.82rem;
-    line-height: 1.7;
+    font-family: var(--body);
+    font-size: 0.88rem;
+    line-height: 1.75;
     color: #b2b2c2;
     padding: 0.5rem 0 0.25rem;
     border-top: 1px solid rgba(255,255,255,0.06);
