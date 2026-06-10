@@ -15,10 +15,10 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        -1856,
+        0,
         0
       ],
-      "id": "919dd6c9-d52c-4df6-87c2-9c62defc19a4",
+      "id": "6ebe5125-5f2e-4e16-b211-b2ee91ef1cd6",
       "name": "RSS Feed Scraper"
     },
     {
@@ -28,16 +28,16 @@
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
       "position": [
-        -960,
+        896,
         336
       ],
-      "id": "3f830e29-733d-4fc6-a7d9-7e10ac3418eb",
+      "id": "8b4fa82a-515b-4acc-ad6d-4cbf48147ab0",
       "name": "Limit - AI Scorer"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "=You are a news scoring assistant. Your only job is to return a single JSON object. Nothing else.\n\nREQUIRED OUTPUT FORMAT \u2014 follow this exactly:\n{\"score\": 75, \"reason\": \"One sentence explaining the score.\", \"category\": \"World News\", \"decay\": \"moderate\", \"article_id\": 123, \"user_id\": 1}\n\nRULES:\n- Output must start with { and end with }\n- No text before the {\n- No text after the }\n- No markdown, no code fences, no backticks\n- No newlines inside the JSON\n- Score must be an integer between 0 and 100\n- Reason must be a single sentence, no longer than 20 words\n- Category must be copied exactly from the list below, character for character\n- Decay must be exactly one of: fast, moderate, slow\n- article_id and user_id must be copied exactly from the values provided below, as integers\n\nSCORING GUIDANCE:\n{{ $json.scoring_prompt }}\n\nSCORE RUBRIC:\n0-39  = low interest \u2014 do not prioritise\n40-74 = moderate interest \u2014 serve if buffer needs filling\n75-100 = high priority \u2014 must hear\n\nDECAY RUBRIC:\nfast     = stale within 24h \u2014 use for: breaking news, sports results, weather events, market moves,\n           political flashpoints, anything with a specific date (\"tomorrow\", \"today\", \"tonight\"),\n           celebrity moments tied to a live event (red carpet, Coachella, awards night)\nmoderate = relevant for 2-4 days \u2014 use for: crime stories still developing, ongoing legal cases,\n           celebrity scandals with new details emerging, earnings reports, short-term policy news\nslow     = valid for weeks or longer \u2014 use for: policy changes and new laws, economic trend analysis,\n           health and science research findings, tech releases and product launches, geopolitical\n           analysis pieces, human interest stories, personal finance advice, property market explainers,\n           anything framed as \"why this matters\" or \"what this means\" rather than \"what just happened\"\n\nDECAY TIE-BREAKER: if the headline contains a specific time reference (\"tomorrow\", \"today\", \"this week\",\n\"last night\") lean fast. If the headline is an analysis or explainer (\"why\", \"how\", \"what this means\",\n\"the truth about\") lean slow. When genuinely unsure, prefer slow over moderate.\n\nALLOWED CATEGORIES \u2014 use only these, spelled exactly as shown:\nWorld News, Politics & Policy, Business & Finance, Technology, AI & Automation, Science & Health, Consumer & Gadgets, Entertainment & Celebrity, Lifestyle & Wellness, Sport, Crime & Justice, Weird & Viral, Opinion & Analysis, Other\n\nGOOD EXAMPLES:\n{\"score\": 82, \"reason\": \"Major diplomatic talks with global economic implications.\", \"category\": \"World News\", \"decay\": \"fast\", \"article_id\": 42, \"user_id\": 1}\n{\"score\": 45, \"reason\": \"Celebrity gossip with limited broader relevance.\", \"category\": \"Entertainment & Celebrity\", \"decay\": \"moderate\", \"article_id\": 17, \"user_id\": 2}\n{\"score\": 78, \"reason\": \"New Claude model release with significant capability improvements.\", \"category\": \"AI & Automation\", \"decay\": \"slow\", \"article_id\": 88, \"user_id\": 1}\n\nBAD EXAMPLES \u2014 never output anything like these:\nHere is the JSON: {\"score\": 75, \"reason\": \"...\", \"category\": \"World News\", \"decay\": \"fast\", \"article_id\": 42, \"user_id\": 1}\n{\"score\": \"75\", \"reason\": \"...\", \"category\": \"world news\", \"decay\": \"Fast\", \"article_id\": \"42\", \"user_id\": \"1\"}\n\narticle_id: {{ $json.article_id }}\nuser_id: {{ $json.user_id }}\nTitle: {{ $json.title }}\nDescription: {{ $json.description }}",
+        "text": "=You are a news scoring assistant. Your only job is to return a single JSON object. Nothing else.\n\nREQUIRED OUTPUT FORMAT — follow this exactly:\n{\"score\": 75, \"reason\": \"One sentence explaining the score.\", \"category\": \"World News\", \"decay\": \"moderate\", \"article_id\": 123, \"user_id\": 1}\n\nRULES:\n- Output must start with { and end with }\n- No text before the {\n- No text after the }\n- No markdown, no code fences, no backticks\n- No newlines inside the JSON\n- Score must be an integer between 0 and 100\n- Reason must be a single sentence, no longer than 20 words\n- Category must be copied exactly from the list below, character for character\n- Decay must be exactly one of: fast, moderate, slow\n- article_id and user_id must be copied exactly from the values provided below, as integers\n\nSCORING GUIDANCE:\n{{ $json.scoring_prompt }}\n\nSCORE RUBRIC:\n0-39  = low interest — do not prioritise\n40-74 = moderate interest — serve if buffer needs filling\n75-100 = high priority — must hear\n\nDECAY RUBRIC:\nfast     = stale within 24h — use for: breaking news, sports results, weather events, market moves,\n           political flashpoints, anything with a specific date (\"tomorrow\", \"today\", \"tonight\"),\n           celebrity moments tied to a live event (red carpet, Coachella, awards night)\nmoderate = relevant for 2-4 days — use for: crime stories still developing, ongoing legal cases,\n           celebrity scandals with new details emerging, earnings reports, short-term policy news\nslow     = valid for weeks or longer — use for: policy changes and new laws, economic trend analysis,\n           health and science research findings, tech releases and product launches, geopolitical\n           analysis pieces, human interest stories, personal finance advice, property market explainers,\n           anything framed as \"why this matters\" or \"what this means\" rather than \"what just happened\"\n\nDECAY TIE-BREAKER: if the headline contains a specific time reference (\"tomorrow\", \"today\", \"this week\",\n\"last night\") lean fast. If the headline is an analysis or explainer (\"why\", \"how\", \"what this means\",\n\"the truth about\") lean slow. When genuinely unsure, prefer slow over moderate.\n\nALLOWED CATEGORIES — use only these, spelled exactly as shown:\nWorld News, Politics & Policy, Business & Finance, Technology, AI & Automation, Science & Health, Consumer & Gadgets, Entertainment & Celebrity, Lifestyle & Wellness, Sport, Crime & Justice, Weird & Viral, Opinion & Analysis, Other\n\nGOOD EXAMPLES:\n{\"score\": 82, \"reason\": \"Major diplomatic talks with global economic implications.\", \"category\": \"World News\", \"decay\": \"fast\", \"article_id\": 42, \"user_id\": 1}\n{\"score\": 45, \"reason\": \"Celebrity gossip with limited broader relevance.\", \"category\": \"Entertainment & Celebrity\", \"decay\": \"moderate\", \"article_id\": 17, \"user_id\": 2}\n{\"score\": 78, \"reason\": \"New Claude model release with significant capability improvements.\", \"category\": \"AI & Automation\", \"decay\": \"slow\", \"article_id\": 88, \"user_id\": 1}\n\nBAD EXAMPLES — never output anything like these:\nHere is the JSON: {\"score\": 75, \"reason\": \"...\", \"category\": \"World News\", \"decay\": \"fast\", \"article_id\": 42, \"user_id\": 1}\n{\"score\": \"75\", \"reason\": \"...\", \"category\": \"world news\", \"decay\": \"Fast\", \"article_id\": \"42\", \"user_id\": \"1\"}\n\narticle_id: {{ $json.article_id }}\nuser_id: {{ $json.user_id }}\nTitle: {{ $json.title }}\nDescription: {{ $json.description }}",
         "batching": {
           "batchSize": 1
         }
@@ -45,10 +45,10 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        -736,
+        1120,
         336
       ],
-      "id": "eddee0f2-7cb9-441e-bbf4-aa54c33e998b",
+      "id": "9b5dada8-ee88-4cd6-af62-4be5d91240ca",
       "name": "LLM Chain - AI Scorer"
     },
     {
@@ -59,10 +59,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmOllama",
       "typeVersion": 1,
       "position": [
-        -672,
+        1184,
         560
       ],
-      "id": "53517c9b-26b0-4a60-b79e-2dd000854d2f",
+      "id": "32b8a209-7402-462c-865d-e83b244aa52c",
       "name": "Ollama Model - AI Scorer",
       "credentials": {
         "ollamaApi": {
@@ -103,10 +103,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        216,
-        536
+        2080,
+        544
       ],
-      "id": "298a8797-a475-43d0-a6d3-71d67e0f150f",
+      "id": "78774347-a115-4e18-ab82-9e19ed2a3677",
       "name": "fetch-article-content",
       "credentials": {
         "httpHeaderAuth": {
@@ -123,16 +123,16 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"feed_url\": \"https://www.dailymail.co.uk/auhome/index.rss\"}",
+        "jsonBody": "={ \"feed_url\": \"https://www.dailymail.com/auhome/index.rss\", \"source_label\": \"AU\" }",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1632,
-        0
+        224,
+        -96
       ],
-      "id": "02783c5b-36b4-434c-af62-17b170d06010",
+      "id": "da3d6289-6ce1-4a63-ba62-a7032a874d25",
       "name": "ingest-feed",
       "credentials": {
         "httpHeaderAuth": {
@@ -151,10 +151,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1632,
+        224,
         464
       ],
-      "id": "52e068f6-efb0-4c5a-b9c0-3c1756d13c27",
+      "id": "f6f6d843-9725-42f1-8399-2a4c5785f1a0",
       "name": "unscored-articles",
       "credentials": {
         "httpHeaderAuth": {
@@ -183,10 +183,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -384,
+        1472,
         336
       ],
-      "id": "6370f179-f5ce-4e0a-98d7-b1539373b130",
+      "id": "b8291ff9-d6ff-4c59-8034-0019e5ca5d35",
       "name": "import-score",
       "credentials": {
         "httpHeaderAuth": {
@@ -203,10 +203,10 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        -1184,
+        672,
         336
       ],
-      "id": "2f16bea4-3bf4-47e3-ad47-a7789d8ef6ab",
+      "id": "ddd3d9db-5691-4472-83f2-704b34112cac",
       "name": "AI Scorer - Split Out"
     },
     {
@@ -236,10 +236,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -1408,
+        448,
         464
       ],
-      "id": "effd53b5-7132-4da8-83ab-4f2c6f930fae",
+      "id": "4eceee8a-9661-484d-bc7b-d309beefc0dd",
       "name": "If"
     },
     {
@@ -249,10 +249,10 @@
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -1856,
+        0,
         464
       ],
-      "id": "dc5f6009-c4f2-4440-b253-25778f260700",
+      "id": "a6853b5f-96d6-49ae-bf22-3f2968fdcdb8",
       "name": "When Executed by Another Workflow"
     },
     {
@@ -265,11 +265,37 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -84,
-        536
+        1776,
+        544
       ],
-      "id": "aabb1122-ccdd-eeff-0011-223344556677",
+      "id": "951e0e34-8e45-46a3-b76e-ba6c111b3deb",
       "name": "articles-needing-content",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "F7GEHBmi3I4fN1LB",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://mudnews-api:8002/n8n/ingest-feed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"feed_url\": \"https://www.dailymail.com/home/index.rss\", \"source_label\": \"UK\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        144
+      ],
+      "id": "f0e222f6-f03e-47cd-bdd7-ec43c2b1c72f",
+      "name": "ingest-feed1",
       "credentials": {
         "httpHeaderAuth": {
           "id": "F7GEHBmi3I4fN1LB",
@@ -285,6 +311,11 @@
         [
           {
             "node": "ingest-feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ingest-feed1",
             "type": "main",
             "index": 0
           }
@@ -324,11 +355,6 @@
         ]
       ]
     },
-    "fetch-article-content": {
-      "main": [
-        []
-      ]
-    },
     "unscored-articles": {
       "main": [
         [
@@ -351,11 +377,6 @@
         ]
       ]
     },
-    "import-score": {
-      "main": [
-        []
-      ]
-    },
     "If": {
       "main": [
         [
@@ -364,8 +385,7 @@
             "type": "main",
             "index": 0
           }
-        ],
-        []
+        ]
       ]
     },
     "When Executed by Another Workflow": {
@@ -391,16 +411,15 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
+    "binaryMode": "separate"
   },
-  "versionId": "c7b2b98b-c8d8-4d69-b318-91e594f9dd1a",
+  "versionId": "581995ea-6dbe-4b4c-9e2b-1cdeeb6eed3f",
   "meta": {
     "instanceId": "fe367f1edbb3db4e0d2c733fd7a03b37d2cf559d9f004c458b8cbee4a8a33e1e"
   },
-  "id": "pt6Vc9HErhrfPVDG",
+  "id": "iWxVVlM9MXNeTkzT",
   "tags": []
 }
