@@ -53,7 +53,6 @@
                         }
                     ],
                     "samples": [
-                        "{query}",
                         "for {query}",
                         "give me {query}",
                         "I want {query}",
