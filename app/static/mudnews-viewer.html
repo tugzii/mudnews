@@ -388,6 +388,21 @@
   .btn-refresh:hover { border-color: var(--accent); color: var(--accent2); }
   .btn-refresh:disabled { opacity: 0.4; cursor: default; }
 
+  .btn-capture {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent2);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .btn-capture:hover { background: var(--accent); color: #fff; }
+  .btn-capture:disabled { opacity: 0.4; cursor: default; }
+
   .status-text {
     font-size: 0.72rem;
     color: var(--muted);
@@ -1550,6 +1565,7 @@
 </div>
 <div class="tabs-right">
   <span class="status-text" id="status-text"></span>
+  <button class="btn-capture" id="btn-capture" onclick="captureFeeds()" title="Fetch latest articles from the UK and AU Daily Mail RSS feeds">⤓ Capture</button>
   <button class="btn-refresh" id="btn-refresh" onclick="loadQueue()">↻ Refresh</button>
 </div>
 </div>
@@ -2112,6 +2128,43 @@ function setSource(src) {
   } else {
     loadQueue();
   }
+}
+
+// ── Capture (on-demand RSS ingest, replaces the old n8n schedule trigger) ──────
+async function captureFeeds() {
+  const btn = document.getElementById('btn-capture');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  setStatus('<span class="spinner"></span>Capturing RSS feeds…');
+  try {
+    const r = await authFetch(`${BASE}/capture-feeds`, { method: 'POST' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const results = data.results || [];
+
+    const parts = results.map(res => {
+      if (res.error) return `${res.source_label}: failed`;
+      return `${res.source_label} +${res.inserted}/${res.total_in_feed}`;
+    });
+    const toastType = results.some(res => res.error) ? 'error' : 'ok';
+    showToast(`Captured — ${parts.join('  ·  ')}`, toastType);
+
+    // Refresh whatever's currently on screen so new articles show up.
+    if (currentTab === 'queue') {
+      if (currentMode === 'explore') {
+        loadExploreInQueue(document.getElementById('queue-search-input').value.trim());
+      } else {
+        loadQueue();
+      }
+    } else if (currentTab === 'explore') {
+      exploreQuery ? runExplore() : loadRecentArticles();
+    }
+  } catch(e) {
+    console.error('Capture error:', e);
+    showToast('Capture failed — connection error', 'error');
+  }
+  setStatus('');
+  btn.disabled = false;
 }
 
 // ── Queue ─────────────────────────────────────────────────────────────────────
