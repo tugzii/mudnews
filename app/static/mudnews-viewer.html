@@ -2147,7 +2147,7 @@ async function captureFeeds() {
       return `${res.source_label} +${res.inserted}/${res.total_in_feed}`;
     });
     const toastType = results.some(res => res.error) ? 'error' : 'ok';
-    showToast(`Captured — ${parts.join('  ·  ')}`, toastType);
+    showToast(`Captured — ${parts.join('  ·  ')}`, toastType, 10000);
 
     // Refresh whatever's currently on screen so new articles show up.
     if (currentTab === 'queue') {
@@ -2161,7 +2161,7 @@ async function captureFeeds() {
     }
   } catch(e) {
     console.error('Capture error:', e);
-    showToast('Capture failed — connection error', 'error');
+    showToast('Capture failed — connection error', 'error', 10000);
   }
   setStatus('');
   btn.disabled = false;
@@ -2760,13 +2760,15 @@ function setMatchCount(matched, total) {
   el.textContent = searchQuery ? `${matched} / ${total}` : '';
 }
 
-function showToast(msg, type = 'ok') {
+function showToast(msg, type = 'ok', durationMs = 3000) {
   const c = document.getElementById('toast-container');
   const t = document.createElement('div');
   t.className   = `toast toast-${type}`;
   t.textContent = msg;
+  const fadeStart = Math.max(0, (durationMs - 300) / 1000);
+  t.style.animation = `toastIn 0.2s ease, toastOut 0.3s ease ${fadeStart}s forwards`;
   c.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+  setTimeout(() => t.remove(), durationMs);
 }
 // ── Explore ───────────────────────────────────────────────────────────────────
 function onExploreInput() {
