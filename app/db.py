@@ -39,23 +39,33 @@ def get_dict_conn():
     )
 
 
-def get_unscored_articles(conn, limit: int = 300) -> list[dict]:
+def get_unscored_articles(conn, limit: int = 300, source_feed: str | None = None) -> list[dict]:
     """
     Return articles that have not yet been scored for every non-borrowing user.
 
     Each row is a dict with keys:
-        article_id, title, description, user_id, scoring_prompt
+        article_id, title, description, source_feed, user_id, scoring_prompt
 
     The limit acts as a memory safety net — the Pi has constrained RAM and
     n8n will fan out one item per row, so avoid fetching unbounded sets.
     """
+    source_feed = source_feed.strip().upper() if source_feed else None
+    source_clause = ""
+    params = []
+    if source_feed in ("AU", "UK"):
+        source_clause = "AND a.source_feed = %s"
+        params.append(source_feed)
+
+    params.append(limit)
+
     cur = conn.cursor()
     cur.execute(
-        """
+        f"""
         SELECT
             a.id          AS article_id,
             a.title,
             a.description,
+            a.source_feed,
             u.id          AS user_id,
             u.scoring_prompt
         FROM articles a
@@ -70,13 +80,15 @@ def get_unscored_articles(conn, limit: int = 300) -> list[dict]:
               WHERE  aus.article_id = a.id
                 AND  aus.user_id    = u.id
           )
+          {source_clause}
         ORDER BY a.id DESC
         LIMIT %s
         """,
-        (limit,),
+        tuple(params),
     )
-    cols = ["article_id", "title", "description", "user_id", "scoring_prompt"]
-    rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+    cols = ["article_id", "title", "description", "source_feed", "user_id", "scoring_prompt"]
+    fetched = cur.fetchall()
+    rows = [dict(row) if isinstance(row, dict) else dict(zip(cols, row)) for row in fetched]
     cur.close()
     return rows
 

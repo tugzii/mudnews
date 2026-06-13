@@ -400,6 +400,64 @@
   .btn-capture:hover { background: var(--accent); color: #fff; }
   .btn-capture:disabled { opacity: 0.4; cursor: default; }
 
+  .score-menu-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .btn-ai-score {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--yellow);
+    background: transparent;
+    color: var(--yellow);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .btn-ai-score:hover,
+  .btn-ai-score.open {
+    background: var(--yellow);
+    color: #141420;
+  }
+  .btn-ai-score:disabled { opacity: 0.4; cursor: default; }
+
+  .score-menu {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    min-width: 150px;
+    display: none;
+    padding: 0.3rem;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--surface);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+    z-index: 140;
+  }
+  .score-menu.open { display: block; }
+
+  .score-menu button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 0.45rem 0.55rem;
+    text-align: left;
+    border-radius: 4px;
+  }
+  .score-menu button:hover {
+    background: var(--surface2);
+    color: var(--yellow);
+  }
+
   .status-text {
     font-size: 0.72rem;
     color: var(--muted);
@@ -1570,6 +1628,14 @@
 <div class="tabs-right">
   <span class="status-text" id="status-text"></span>
   <button class="btn-capture" id="btn-capture" onclick="captureFeeds()" title="Fetch latest articles from the UK and AU Daily Mail RSS feeds">⤓ Capture</button>
+  <div class="score-menu-wrap" id="score-menu-wrap">
+    <button class="btn-ai-score" id="btn-ai-score" onclick="toggleScoreMenu(event)" title="Choose which recent stories to AI score">⌛ AI Score ▾</button>
+    <div class="score-menu" id="score-menu">
+      <button onclick="scoreFeeds('AU')">Score AU</button>
+      <button onclick="scoreFeeds('UK')">Score UK</button>
+      <button onclick="scoreFeeds('all')">Score both</button>
+    </div>
+  </div>
   <button class="btn-refresh" id="btn-refresh" onclick="loadQueue()">↻ Refresh</button>
 </div>
 </div>
@@ -2053,6 +2119,7 @@ window.addEventListener('DOMContentLoaded', () => {
   srInitScrubber();
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      closeScoreMenu();
       if (document.getElementById('sr-modal').classList.contains('open')) { srClose(); return; }
       if (currentTab === 'queue' && queueSearchQuery) { clearQueueSearch(); return; }
       if (currentTab === 'history' && historySearchQuery) { clearHistorySearch(); return; }
@@ -2069,6 +2136,10 @@ window.addEventListener('DOMContentLoaded', () => {
       const _sel = document.getElementById(_sid);
       if (_sel) _sel.focus();
     }
+  });
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('score-menu-wrap');
+    if (wrap && !wrap.contains(e.target)) closeScoreMenu();
   });
 });
 
@@ -2166,6 +2237,72 @@ async function captureFeeds() {
   } catch(e) {
     console.error('Capture error:', e);
     showToast('Capture failed — connection error', 'error', 10000);
+  }
+  setStatus('');
+  btn.disabled = false;
+}
+
+function toggleScoreMenu(event) {
+  event.stopPropagation();
+  const btn = document.getElementById('btn-ai-score');
+  if (btn.disabled) return;
+  const menu = document.getElementById('score-menu');
+  const isOpen = menu.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+}
+
+function closeScoreMenu() {
+  const btn = document.getElementById('btn-ai-score');
+  const menu = document.getElementById('score-menu');
+  if (!btn || !menu) return;
+  menu.classList.remove('open');
+  btn.classList.remove('open');
+}
+
+async function refreshActiveViewAfterFeedAction() {
+  if (currentTab === 'queue') {
+    if (currentMode === 'explore') {
+      await loadExploreInQueue(document.getElementById('queue-search-input').value.trim());
+    } else {
+      await loadQueue();
+    }
+  } else if (currentTab === 'explore') {
+    exploreQuery ? await runExplore() : await loadRecentArticles();
+  }
+}
+
+async function scoreFeeds(source) {
+  closeScoreMenu();
+  const btn = document.getElementById('btn-ai-score');
+  if (btn.disabled) return;
+
+  const sourceLabel = source === 'all' ? 'both' : source;
+  const body = {
+    batch_size: 100,
+    max_articles: 300,
+    source_feed: source === 'all' ? null : source
+  };
+
+  btn.disabled = true;
+  setStatus(`<span class="spinner"></span>AI scoring ${sourceLabel}…`);
+  try {
+    const r = await authFetch(`${BASE}/score-feeds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    const toastType = data.errors ? 'error' : 'ok';
+    showToast(
+      `AI scored ${sourceLabel} — fetched ${data.fetched} · scored ${data.scored} · skipped ${data.skipped} · errors ${data.errors}`,
+      toastType,
+      10000
+    );
+    await refreshActiveViewAfterFeedAction();
+  } catch(e) {
+    console.error('AI score error:', e);
+    showToast(`AI score ${sourceLabel} failed — connection error`, 'error', 10000);
   }
   setStatus('');
   btn.disabled = false;

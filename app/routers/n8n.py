@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.auth import require_session
 from app.dependencies import require_auth
 from app.db import (
     get_conn, get_unscored_articles, insert_article_score,
@@ -32,6 +33,7 @@ from app import gemini
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/n8n", tags=["n8n"])
+ui_router = APIRouter(prefix="/mudnews", tags=["score"])
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +116,7 @@ async def import_score(
 class ScoreBatchRequest(BaseModel):
     batch_size:    int = 100   # articles per Gemini call (100 ≈ 6k output tokens, safe)
     max_articles:  int = 300   # safety cap on one invocation (Pi RAM + run time)
+    source_feed:   str | None = None  # AU, UK, or omitted for both
 
 
 def _chunked(seq: list, size: int):
@@ -121,16 +124,15 @@ def _chunked(seq: list, size: int):
         yield seq[i:i + size]
 
 
-@router.post("/score-batch")
-async def score_batch_endpoint(
-    body: ScoreBatchRequest = ScoreBatchRequest(),
-    user: str = Depends(require_auth),
-):
+async def _score_unscored_articles(body: ScoreBatchRequest) -> JSONResponse:
     batch_size = max(1, min(body.batch_size, 100))
+    source_feed = body.source_feed.strip().upper() if body.source_feed else None
+    if source_feed not in (None, "", "AU", "UK"):
+        raise HTTPException(status_code=422, detail="source_feed must be AU, UK, or omitted")
 
     conn = get_conn()
     try:
-        rows = get_unscored_articles(conn, limit=body.max_articles)
+        rows = get_unscored_articles(conn, limit=body.max_articles, source_feed=source_feed)
     finally:
         conn.close()
 
@@ -138,6 +140,7 @@ async def score_batch_endpoint(
         return JSONResponse({
             "status": "empty", "fetched": 0, "scored": 0,
             "skipped": 0, "errors": 0, "batches": 0, "users": 0,
+            "source_feed": source_feed or "all",
         })
 
     # Group rows by user so each user is scored with their own prompt.
@@ -204,11 +207,13 @@ async def score_batch_endpoint(
                 conn.close()
 
     logger.info(
-        "score-batch: fetched=%d scored=%d skipped=%d errors=%d batches=%d users=%d",
-        len(rows), total_scored, total_skipped, total_errors, total_batches, len(user_groups),
+        "score-batch: source=%s fetched=%d scored=%d skipped=%d errors=%d batches=%d users=%d",
+        source_feed or "all", len(rows), total_scored, total_skipped,
+        total_errors, total_batches, len(user_groups),
     )
     return JSONResponse({
         "status":   "ok",
+        "source_feed": source_feed or "all",
         "fetched":  len(rows),
         "scored":   total_scored,
         "skipped":  total_skipped,
@@ -216,6 +221,22 @@ async def score_batch_endpoint(
         "batches":  total_batches,
         "users":    len(user_groups),
     })
+
+
+@router.post("/score-batch")
+async def score_batch_endpoint(
+    body: ScoreBatchRequest = ScoreBatchRequest(),
+    user: str = Depends(require_auth),
+):
+    return await _score_unscored_articles(body)
+
+
+@ui_router.post("/score-feeds")
+async def score_feeds_endpoint(
+    body: ScoreBatchRequest = ScoreBatchRequest(),
+    user: str = Depends(require_session),
+):
+    return await _score_unscored_articles(body)
 
 
 # ---------------------------------------------------------------------------
