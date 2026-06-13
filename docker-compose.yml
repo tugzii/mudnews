@@ -11,6 +11,11 @@ services:
       - DB_HOST=postgres-pi
       - DB_NAME=feeds_db
       - TZ=Australia/Brisbane
+      - AI_SCORER_PROVIDER=${AI_SCORER_PROVIDER:-ollama}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5-coder:14b-8k}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./app:/app/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload

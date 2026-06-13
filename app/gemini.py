@@ -1,5 +1,13 @@
 """
-Gemini batch scorer for mudnews.
+LLM scorer for mudnews.
+
+The public API stays as:
+
+    await score_batch(articles, scoring_prompt) -> list[dict]
+
+Provider selection:
+    AI_SCORER_PROVIDER=ollama  -> score one article at a time with local Ollama
+    AI_SCORER_PROVIDER=gemini  -> use the preserved Gemini batch scorer
 
 Scores many articles in a single Google Gemini 2.5 Flash call and returns one
 result per article.  Design choices that make this robust against the failure
@@ -42,6 +50,13 @@ import os
 import httpx
 
 logger = logging.getLogger(__name__)
+
+AI_SCORER_PROVIDER = os.environ.get("AI_SCORER_PROVIDER", "ollama").strip().lower()
+
+OLLAMA_MODEL    = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:14b-8k")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
+OLLAMA_TIMEOUT  = float(os.environ.get("OLLAMA_TIMEOUT", "180"))
+_OLLAMA_LOCAL_FALLBACK = "http://127.0.0.1:11434"
 
 GEMINI_MODEL   = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_URL = (
@@ -121,6 +136,26 @@ When unsure between two, prefer the slower one.
 
 CATEGORY: choose the single best-fit label from the allowed enum."""
 
+_OLLAMA_SYSTEM_TEMPLATE = """\
+You are a silent news scoring backend. Score exactly one news item for this \
+reader. Return only one JSON object. No markdown, no prose, no code fence.
+
+RATING CRITERIA (what this particular reader values - score 0-100 integer):
+{scoring_prompt}
+
+Return this exact JSON shape:
+{{"score": 0, "category": "Other", "decay": "moderate"}}
+
+score must be an integer from 0 to 100.
+category must be one of: {categories}
+decay must be one of: fast, moderate, slow.
+
+DECAY:
+fast = stale within 24h.
+moderate = relevant 2-4 days.
+slow = relevant for weeks.
+When unsure between two, prefer the slower one."""
+
 
 def _build_article_list(articles: list[dict]) -> str:
     """Render articles as a numbered list the model scores by position."""
@@ -136,7 +171,104 @@ class _ContentBlocked(Exception):
     """Gemini blocked the prompt itself (promptFeedback.blockReason)."""
 
 
-async def _score_once(articles: list[dict], scoring_prompt: str) -> list[dict]:
+def _extract_json_object(raw: str) -> dict:
+    """Parse a JSON object, tolerating accidental text around it."""
+    raw = (raw or "").strip()
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        parsed = json.loads(raw[start:end + 1])
+    if not isinstance(parsed, dict):
+        raise ValueError("LLM response was not a JSON object")
+    return parsed
+
+
+def _normalise_score_item(article_id: int, item: dict) -> dict:
+    try:
+        score = max(0, min(100, int(item["score"])))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"Bad score in LLM response: {item}") from exc
+
+    category = item.get("category", "Other")
+    if category not in _VALID_CATEGORIES:
+        category = "Other"
+    decay = item.get("decay", "moderate")
+    if decay not in _VALID_DECAY:
+        decay = "moderate"
+
+    return {
+        "article_id": article_id,
+        "score":      score,
+        "reason":     "",
+        "category":   category,
+        "decay":      decay,
+    }
+
+
+async def _ollama_post(client: httpx.AsyncClient, path: str, body: dict) -> httpx.Response:
+    urls = [OLLAMA_BASE_URL]
+    if OLLAMA_BASE_URL == "http://host.docker.internal:11434":
+        urls.append(_OLLAMA_LOCAL_FALLBACK)
+
+    last_error = None
+    for base_url in urls:
+        try:
+            return await client.post(f"{base_url}{path}", json=body)
+        except httpx.HTTPError as exc:
+            last_error = exc
+            logger.warning("Ollama request failed via %s: %s", base_url, exc)
+    raise RuntimeError(f"Could not reach Ollama at {', '.join(urls)}: {last_error}")
+
+
+async def _score_ollama_one(client: httpx.AsyncClient, article: dict,
+                            scoring_prompt: str) -> dict:
+    prompt = (
+        f"Title: {(article.get('title') or '').strip()}\n"
+        f"Description: {(article.get('description') or '').strip()}"
+    )
+    body = {
+        "model": OLLAMA_MODEL,
+        "system": _OLLAMA_SYSTEM_TEMPLATE.format(
+            scoring_prompt=(scoring_prompt or "").strip(),
+            categories=", ".join(ALLOWED_CATEGORIES),
+        ),
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+        "options": {
+            "temperature": 0,
+            "num_ctx": 8192,
+        },
+    }
+
+    resp = await _ollama_post(client, "/api/generate", body)
+    if resp.status_code != 200:
+        raise ValueError(f"Ollama HTTP {resp.status_code}: {resp.text[:300]}")
+
+    payload = resp.json()
+    item = _extract_json_object(payload.get("response", ""))
+    return _normalise_score_item(article["article_id"], item)
+
+
+async def _score_ollama_batch(articles: list[dict], scoring_prompt: str) -> list[dict]:
+    results = []
+    async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+        for article in articles:
+            try:
+                results.append(await _score_ollama_one(client, article, scoring_prompt))
+            except Exception as exc:
+                logger.warning(
+                    "Ollama scoring failed for article_id=%s: %s",
+                    article.get("article_id"), exc,
+                )
+    return results
+
+
+async def _score_gemini_once(articles: list[dict], scoring_prompt: str) -> list[dict]:
     """
     Single Gemini call for one batch. Retries 503 (overload) with backoff.
     Raises _ContentBlocked if the prompt is rejected, ValueError on anything
@@ -252,7 +384,7 @@ async def _score_once(articles: list[dict], scoring_prompt: str) -> list[dict]:
     return results
 
 
-async def score_batch(articles: list[dict], scoring_prompt: str) -> list[dict]:
+async def _score_gemini_batch(articles: list[dict], scoring_prompt: str) -> list[dict]:
     """
     Score a batch of articles. If Gemini blocks the prompt as a whole, the batch
     is recursively halved down to the single offending article, which is skipped
@@ -265,7 +397,7 @@ async def score_batch(articles: list[dict], scoring_prompt: str) -> list[dict]:
     if not articles:
         return []
     try:
-        return await _score_once(articles, scoring_prompt)
+        return await _score_gemini_once(articles, scoring_prompt)
     except _ContentBlocked as block:
         if len(articles) == 1:
             logger.warning("Article %s blocked by Gemini (%s) — skipping it.",
@@ -274,6 +406,25 @@ async def score_batch(articles: list[dict], scoring_prompt: str) -> list[dict]:
         mid = len(articles) // 2
         logger.info("Batch of %d blocked (%s) — splitting %d + %d and retrying.",
                     len(articles), block, mid, len(articles) - mid)
-        left  = await score_batch(articles[:mid], scoring_prompt)
-        right = await score_batch(articles[mid:], scoring_prompt)
+        left  = await _score_gemini_batch(articles[:mid], scoring_prompt)
+        right = await _score_gemini_batch(articles[mid:], scoring_prompt)
         return left + right
+
+
+async def score_batch(articles: list[dict], scoring_prompt: str) -> list[dict]:
+    """
+    Score articles using the configured provider.
+
+    Ollama intentionally scores one article at a time because local models have
+    been unreliable with batches. Gemini keeps the older batch path so a later
+    commercial/API provider can use the same batched route shape again.
+    """
+    if not articles:
+        return []
+    if AI_SCORER_PROVIDER == "ollama":
+        return await _score_ollama_batch(articles, scoring_prompt)
+    if AI_SCORER_PROVIDER == "gemini":
+        return await _score_gemini_batch(articles, scoring_prompt)
+    raise RuntimeError(
+        f"Unsupported AI_SCORER_PROVIDER={AI_SCORER_PROVIDER!r}; use 'ollama' or 'gemini'"
+    )

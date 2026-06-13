@@ -107,14 +107,14 @@ async def import_score(
 # ---------------------------------------------------------------------------
 # Self-contained batch scorer. n8n calls this ONE endpoint on a schedule; the
 # backend does everything: fetch unscored articles for every non-borrowing
-# user, chunk them into batches, score each batch with Gemini 2.5 Flash, and
-# upsert the results. There is no LLM node in n8n and no per-article round-trip.
+# user, chunk them for the scorer, and upsert the results. The scorer may run
+# one article at a time for local Ollama or use a batched provider later.
 #
 # Articles are grouped per user so each reader is scored with their own
 # scoring_prompt. Borrowing users (borrows_scores_from IS NOT NULL) are excluded
 # by get_unscored_articles, so they cost nothing — they read the lender's scores.
 class ScoreBatchRequest(BaseModel):
-    batch_size:    int = 100   # articles per Gemini call (100 ≈ 6k output tokens, safe)
+    batch_size:    int = 100   # articles per scorer chunk
     max_articles:  int = 300   # safety cap on one invocation (Pi RAM + run time)
     source_feed:   str | None = None  # AU, UK, or omitted for both
 
@@ -174,10 +174,13 @@ async def _score_unscored_articles(body: ScoreBatchRequest) -> JSONResponse:
                 logger.error("score-batch aborted: %s", exc)
                 raise HTTPException(status_code=500, detail=str(exc))
             except ValueError as exc:
-                # One bad Gemini response — skip this batch, keep going.
-                logger.error("score-batch: Gemini batch failed for user %d — %s", uid, exc)
+                # One bad model response — skip this batch, keep going.
+                logger.error("score-batch: model batch failed for user %d — %s", uid, exc)
                 total_errors += len(articles)
                 continue
+
+            if len(scored) < len(articles):
+                total_errors += len(articles) - len(scored)
 
             conn = get_conn()
             try:
